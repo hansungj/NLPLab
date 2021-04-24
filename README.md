@@ -3,5 +3,5 @@
 ## Natural Language Inference 
 
 Contributors:
-Sungjun Han 
-Anastasiia Sirotina
+- Sungjun Han 
+- Anastasiia Sirotina
