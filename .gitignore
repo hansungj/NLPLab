@@ -1,0 +1,8 @@
+
+data/.DS_Store
+.DS_Store
+*.pyc
+nli_nlp_lab.egg-info/PKG-INFO
+*.txt
+nli/.DS_Store
+.DS_Store
