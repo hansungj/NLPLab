@@ -1,0 +1,10 @@
+name: nlplab
+channels:
+  - pytorch
+  - defaults
+dependencies:
+  - python=3.7
+  - codecov
+  - pytorch
+  - numpy
+  - scipy
