@@ -9,7 +9,7 @@ Contributors:
 # setup
 ```
 conda env create -f environment.yml
-conda activate sysgen
+conda activate nlplab
 pip install -e .
 ```
 
