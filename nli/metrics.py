@@ -39,10 +39,22 @@ def confusion_matrix(y_true, y_pred, axis=0):
 	return C 
 
 def precision(C):
-	raise NotImplementedError 
+	#raise NotImplementedError
+	prec = C[0][0] / (C[0][0] + C[1][0])
+	
+	return prec
 
 def recall(C):
-	raise NotImplementedError 
+	#raise NotImplementedError
+	rec = C[0][0] / (C[0][0] + C[0][1])
+	
+	return rec
 
 def f1score(C):
-	raise NotImplementedError 
+	#raise NotImplementedError
+	prec = C[0][0] / (C[0][0] + C[1][0])
+	rec = C[0][0] / (C[0][0] + C[0][1])
+	
+	F1 = 2 * prec * rec / (prec + rec)
+	
+	return F1
