@@ -50,12 +50,12 @@ def recall(C):
 	
 	return rec
 
-def f1score(C):
+def fscore(prec, rec, beta = 1):
 	#raise NotImplementedError
-	prec = C[0][0] / (C[0][0] + C[1][0])
-	rec = C[0][0] / (C[0][0] + C[0][1])
+	# prec = C[0][0] / (C[0][0] + C[1][0])
+	# rec = C[0][0] / (C[0][0] + C[0][1])
 	
-	F1 = 2 * prec * rec / (prec + rec)
+	F1 = (1+beta**2) * prec * rec / (prec*beta**2 + rec)
 	
 	return F1
 
