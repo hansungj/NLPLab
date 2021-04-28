@@ -19,6 +19,8 @@ parser.add_argument('--eval_acc', default=True,type=bool)
 parser.add_argument('--eval_precision', default=False,type=bool)
 parser.add_argument('--eval_recall', default=False,type=bool)
 parser.add_argument('--eval_f1score', default=False,type=bool)
+parser.add_argument('--eval_f1score_beta', default=1,type=float)
+
 
 
 logger = logging.getLogger(__name__)
@@ -59,7 +61,7 @@ def main(args):
 			precision = metrics.recall(C)
 			result['recall'] = recall
 
-		f1score = metrics.f1score(precision, recall)
+		f1score = metrics.f1score(precision, recall, args.eval_f1score_beta)
 		result['f1score'] = f1score
 
 
