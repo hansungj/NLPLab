@@ -58,3 +58,4 @@ def f1score(C):
 	F1 = 2 * prec * rec / (prec + rec)
 	
 	return F1
+
