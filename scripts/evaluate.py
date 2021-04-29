@@ -2,6 +2,7 @@ import argparse
 import numpy 
 import logging 
 import json
+import os
 
 
 import nli.utils as utils  
@@ -10,8 +11,9 @@ import nli.metrics as metrics
 parser = argparse.ArgumentParser()
 
 #paths
-parser.add_argument("--label_dir", default=None, type=str)
-parser.add_argument('--pred_label_dir', default=None, type=str)
+parser.add_argument('--data_dir', default='data', type=str)
+parser.add_argument("--label_dir", default='alphanli/jsonl/train-labels.lst', type=str)
+parser.add_argument('--pred_dir', default=None, type=str)
 parser.add_argument('--eval_pth', default='', type=str)
 
 #eval metric to use 
@@ -27,8 +29,12 @@ logger = logging.getLogger(__name__)
 
 def main(args):
 
-	y_true = utils.open_label_file(args.label_dir)
-	y_pred = utils.open_label_file(args.pred_label_dir)
+	#get path
+	label_path = os.path.join(args.data_dir,args.label_dir)
+	pred_path = os.path.join(args.data_dir,args.pred_dir)
+
+	y_true = utils.open_label_file(label_path)
+	y_pred = utils.open_label_file(pred_path)
 
 	C = None
 	precison = None
