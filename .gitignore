@@ -7,3 +7,6 @@ nli_nlp_lab.egg-info/PKG-INFO
 nli/.DS_Store
 .DS_Store
 *.lst
+*.json
+*.json
+*.json
