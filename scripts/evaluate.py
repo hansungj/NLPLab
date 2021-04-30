@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 def main(args):
 
 	#get path
-	label_path = os.path.join(args.data_dir,args.label_dir)
-	pred_path = os.path.join(args.data_dir,args.pred_dir)
+	label_path = os.path.join(args.data_dir + os.sep,args.label_dir)
+	pred_path = os.path.join(args.data_dir + os.sep ,args.pred_dir)
 
 	y_true = utils.open_label_file(label_path)
 	y_pred = utils.open_label_file(pred_path)
