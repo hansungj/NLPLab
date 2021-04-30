@@ -23,6 +23,6 @@ Try how good you are at this task!
 
 ```
 python scripts/annotate.py --max_samples 30
-python scripts/evaluate.py --label_dir 'annot_label.lst' --pred_dir 'annot_pred'
+python scripts/evaluate.py --label_dir 'annot_label.lst' --pred_dir 'annot_pred.lst'
 cat eval_result.json
 ```
