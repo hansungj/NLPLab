@@ -59,6 +59,7 @@ def main():
 
 		print('Please select "1" or "2" and Press Enter')
 
+		#only accept 1 or 2 
 		while True:
 			pred = input()
 			if pred in ['1', '2']:
