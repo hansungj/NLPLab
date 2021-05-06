@@ -38,22 +38,30 @@ def confusion_matrix(y_true, y_pred, axis=0):
 	
 	return C 
 
-def precision(C):
+def precision(y_true, y_pred, C=None):
 	#raise NotImplementedError
+	if C is None:
+		C = confusion_matrix(y_true, y_pred)
 	prec = C[0][0] / (C[0][0] + C[1][0])
 	
 	return prec
 
-def recall(C):
+def recall(y_true, y_pred, C=None):
 	#raise NotImplementedError
+	if C is None:
+		C = confusion_matrix(y_true, y_pred)
 	rec = C[0][0] / (C[0][0] + C[0][1])
 	
 	return rec
 
-def fscore(prec, rec, beta = 1):
+def fscore(y_true, y_pred, beta = 1):
 	#raise NotImplementedError
 	# prec = C[0][0] / (C[0][0] + C[1][0])
 	# rec = C[0][0] / (C[0][0] + C[0][1])
+
+	C = confusion_matrix(y_true,y_pred)
+	prec = precision(None,None,C)
+	rec = recall(None,None,C)
 	
 	F1 = (1+beta**2) * prec * rec / (prec*beta**2 + rec)
 	

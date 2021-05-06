@@ -7,6 +7,7 @@ import argparse
 import numpy as np
 
 from nli.utils import open_tsv_file
+import nli.metrics 
 import torch
 from torch.utils.data import DataLoader, Dataset
 
@@ -22,13 +23,27 @@ class AlphaDataset(Dataset):
 				 tsv,
 				 vocab,
 				 max_samples,
-				 annotate=False):
+				 annotate=False,
+				 eval_measure='accuracy'):
 
 
 		self.tsv_path = tsv
 		self.vocab = vocab
 		self.max_samples = max_samples
 		self.annotate = annotate #annotation mode
+		self.eval_measure = eval_measure
+
+		#evaluation 
+		if eval_measure == 'accuracy':
+			self.eval_function = nli.metrics.accuracy
+		elif eval_measure == 'precision':
+			self.eval_function = nli.metrics.precision
+		elif eval_measure == 'recall':
+			self.eval_function = nli.metrics.recall
+		elif eval_measure == 'f1score':
+			self.eval_function = nli.metrics.f1score
+		else:
+			raise ValueError('unknown evaluation measure')
 
 
 		if self.tsv_path is not None:
@@ -44,6 +59,8 @@ class AlphaDataset(Dataset):
 		if not self.annotate:
 			# convert natural language to tensor through encoding
 			pass
+
+
 		
 
 	def __len__(self):
@@ -58,3 +75,11 @@ class AlphaDataset(Dataset):
 			return self.obs1[idx], self.obs2[idx], self.hyp1[idx], self.hyp2[idx], self.label[idx]
 
 		raise NotImplementedError
+
+
+	def eval(self):
+
+		if self.label is None or self.pred is None:
+			return None
+		self.eval_result = self.eval_function(self.label, self.pred)
+
