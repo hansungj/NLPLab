@@ -35,11 +35,7 @@ def main(args):
 
 	y_true = utils.open_label_file(label_path)
 	y_pred = utils.open_label_file(pred_path)
-
-	C = None
-	precison = None
-	recall = None
-
+	
 	result = {}
 
 	if args.eval_acc:
@@ -47,27 +43,15 @@ def main(args):
 		result['accuracy'] = acc
 
 	if args.eval_precision:
-		C = metrics.confusion_matrix(y_true, y_pred)
-		precision = metrics.precision(C)
+		precision = metrics.precision(y_true, y_pred)
 		result['precision'] = precision
 
 	if args.eval_recall:
-		if C is None:
-			C = metrics.confusion_matrix(y_true, y_pred)
-		recall = metrics.recall(C)
+		recall = metrics.recall(y_true, y_pred)
 		result['recall'] = recall
 
 	if args.eval_f1score:
-		if C is None:
-			C = metrics.confusion_matrix(y_true, y_pred)
-		if precision is None:
-			precision = metrics.precision(C)
-			result['precision'] = precision
-		if recall is None:
-			precision = metrics.recall(C)
-			result['recall'] = recall
-
-		f1score = metrics.f1score(precision, recall, args.eval_f1score_beta)
+		f1score = metrics.f1score(y_true, y_pred, args.eval_f1score_beta)
 		result['f1score'] = f1score
 
 

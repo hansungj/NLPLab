@@ -5,7 +5,7 @@ from nli.similarity import levenshtein
 
 
 def sigmoid(x):
-	return np.exp(x)/np.sum(np.exp(x))
+	return  1 / (1 + np.exp(-x))
 
 def idf(corpus):
 	'''
@@ -31,9 +31,9 @@ class BagOfWords(object):
 
 	def __init__(self,
 				 vocab,
+				 classifier,
 				 sim_function='levenshtein',
 				 weight_function=None,
-				 classifier_type = None,
 				 max_cost = 100,
 				 bidirectional = False,
 				 ):
@@ -42,7 +42,6 @@ class BagOfWords(object):
 		self.vocab = vocab
 		self.sim_function = sim_function
 		self.weight_function = weight_function
-		self.classifier_type = classifier_type
 		self.bidirectional = bidirectional # consider cost(p|h) and cost(h|p)
 		self.max_cost = max_cost
 
@@ -56,13 +55,6 @@ class BagOfWords(object):
 			self.weight = None
 		else:
 			raise ValueError('we dont recognize this weight function')
-
-		if self.classifier_type == None:
-			self.classifier = sigmoid
-		elif self.classifier_type == 'maxent':
-			self.classifier = MaxEnt()
-		else:
-			raise ValueError('we dont recognize this classifier type')
 
 
 	def alignment_cost(self, w1, w2):
@@ -88,31 +80,181 @@ class BagOfWords(object):
 			self.weight = idf(corpus)
 
 		#train classifier 
-		if self.classifier_type == 'maxent':
-			self.classifier.train(corpus)
+		self.classifier.train(corpus)
+
+	def features(self, h1, h2, p):
+
+		features = []
+		features.append(self.total_cost(h1, p) - self.total_cost(h2, p))
+
+		if self.bidirectional:
+			features.append(self.total_cost(p, h1) - self.total_cost(p, h2))
+
+		return features
 
 	def inference(self, h1, h2, p):
 		'''
 		assume hypothesis and premise are already tokenized
 	
 		'''
-		cost1 = self.total_cost(h1, p)
-		cost2 = self.total_cost(h2, p)
-		if self.bidirectional:
-			cost1 += self.total_cost(p, h1)
-			cost2 += self.total_cost(p, h2)
-
-		x = self.classifier([-cost1, -cost2])
+		features = self.features(h1,h2,p)
+		x = self.classifier.forward(features)
 		return x
 
-class MaxEnt():
 
+class GDClassifier(object):
 
-	def __init__(self):
-		NotImplementedError
+	def train(self, x, y):
+		for x_p, y_p in zip(x,y):
+			self.train_step(x,y)
 
-	def train(self):
-		NotImplementedError
+		self.gradient_step()
+		self.reset_gradient()
+
+	def gradient_step(self):
+		self.weights -= self.lr * self.gradient
+
+	def reset_gradient(self):
+
+		self.gradient = np.zero_like(self.weights)
+
+	def forward(self, x):
+		NotImplementedError 
+
+class LogisticRegression(GDClassifier):
+
+	def __init__(self,
+				num_features,
+				lr=0.01,
+				bias = True
+				regularization=True,
+				lmda = 0.1):
+
+		self.lr = lr
+		self.bias = bias
+		self.lmda = lmda
+		self.regularization = regularization
+
+		if bias:
+			num_features += 1
+
+		self.weights = np.ones(num_features+1)
+		self.reset_gradient()
+
+	def train_step(self, x, y):
+		'''
+		y(1-y) if i = j
+		'''
+		if bias:
+			x = np.append(x, 1)
+		y_hat = self.forward(x)
+		self.gradient += -(y*(1-y_hat) + (1-y)*y_hat )*x
+
+		if self.regularization:
+			gradient += self.lmda*self.weights
+
+	def forward(self, x):
+		x = np.sum(self.weights*x)
+		x = 1 / (1+ np.exp(-x))
+		return x
+
+class MaxEnt(GDClassifier):
+	'''
+	Using continous features require more complicated solution 
+	Hence we take a buckting approach where for each continous feature 
+	which we know to be centered around zero 
+	we bucket them into discrete features using a specified stepsize
+	https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.187.9459&rep=rep1&type=pdf
+
+	'''
+
+	def __init__(self,
+				 num_features,
+				 num_classes=2,
+				 step_size,
+				 num_buckets,
+				 lr = 0.01,
+				 reg = True,
+				 reg_lambda = 0.01):
+	
+		self.num_classes = num_classes
+		self.step_size = step_size
+		self.num_buckets = num_buckets
+		self.lr = lr
+		self.reg = reg
+		self.reg_lambda = reg_lambda
+
+		
+		#number of buckets + 2 to reprsent the ranges at the ends 
+
+		# if isinstance(num_buckets, list): # you can also specify the bucket ranges yourself
+		# 	self.weights = np.ones(num_classes, (len(num_buckest)*2+2)*num_features)
+		# 	self.custom_buckets = True
+		# else:
+		
+		# the order is [f_1 positive, f_1 negative, f_2 positive, f_2 negative ,... ]
+		self.weights = np.ones(num_classes, (num_buckest*2+2)*num_features)
+		self.reset_gradient()
+
+	def convert_to_features(self, x, y=None):
+
+		features = np.zeros_like(self.weights)
+		for i, f_value in enumerate(x):
+
+			if abs(f_value) > self.num_buckets*self.step_size:
+				idx = self.num_buckets
+			else:
+				idx = f_value//self.step_size
+
+			if f_value < 0 : 
+				idx += self.num_buckets
+
+			idx += i*(num_buckets*2)+2
+
+			if y is None:
+				features[:,idx] = 1 
+			else:
+				features[y,idx] = 1
+
+		return features 
+
+	def forward(self, x, as_features = False):
+
+		if not as_features:
+			x = self.convert_to_features(x) # num_classes * total_num_features 
+		x = np.sum(x,axis=1)
+		x = np.exp(x)
+		return x / np.sum(x) # outputs vector of size num_classes
+
+	def model_expectation(self, x):
+
+		x = self.convert_to_features(x, y)
+		model_p = self.forward(x)
+
+		expectation = model_p*x
+		return expectation
+
+	def empirical_expectation(self, x, y):
+		'''
+		x already in features 
+		y in range(num_classes)
+		'''
+		expectation = self.convert_to_features(x, y)
+		return expectation
+
+	def train_step(self, x, y):
+		#compute empirical expectaation for the features 
+		e_p_emp = self.empirical_expectation(x,y)
+
+		#compute model expectation for the features 
+		e_p_model = self.model_expectation(x)
+
+		#compute gradient
+		self.gradient += e_p_emp - e_p_model
+
+		#L2 regularization: lambda * W^2, or W^2/(2*sigma^2)
+		if self.reg:
+			self.gradient -= self.reg_lambda*self.weights
 
 
 if __name__ == '__main__':
