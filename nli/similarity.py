@@ -20,23 +20,24 @@ def levenshtein(x,y):
 	return dp[-1][-1]
    
  
- def distributional(x,y, idx2tok, cooccurence_matrix, distance_type = 'eucledian'):
+ def distributional(x,y, distance_type = 'euclidian'):
     '''
     distance between distributional representations 
     '''
     
-    x_vec = cooccurence_matrix[idx2tok[x]]
-    y_vec = cooccurence_matrix[idx2tok[y]]
     dist = 0
     
-    if distance_type == 'eucledian':
-        for i in len(x_vec):
-            dist += (x_vec - y_vec)**2
+    if distance_type == 'euclidian':
+        for i in len(x_):
+            dist += (x - y)**2
         dist = math.sqrt(dist)
         
     elif distance_type == 'cosine':
-        dist = np.dot(x_vec, y_vec) / (np.linalg.norm(x_vec) * np.linalg.norm(y_vec))
+        dist = np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
         
+    elif distance_type == 'coocurrence':
+        dist = x[y] / np.sum(x)
+    
     else:
         raise ValueError('This distance type is not supported')
     return dist
