@@ -115,8 +115,7 @@ class GDClassifier(object):
 		self.weights -= self.lr * self.gradient
 
 	def reset_gradient(self):
-
-		self.gradient = np.zero_like(self.weights)
+		self.gradient = np.zeros_like(self.weights)
 
 	def forward(self, x):
 		NotImplementedError 
@@ -193,10 +192,26 @@ class MaxEnt(GDClassifier):
 		# else:
 		
 		# the order is [f_1 positive, f_1 negative, f_2 positive, f_2 negative ,... ]
-		self.weights = np.ones(num_classes, (num_buckest*2+2)*num_features)
+		self.weights = np.ones(num_classes, (num_buckets*2+2)*num_features)
 		self.reset_gradient()
 
 	def convert_to_features(self, x, y=None):
+		'''
+		num_buckets = 2
+		step_size = 1
+		
+		[cost1 cost2]
+
+		w = y=0[ [0,1][1,2][2,inf][-1][-2,-1][-inf,-2] [0,1][1,2][2,inf][-1][-2,-1][-inf,-2],
+			y=1  [0,1][1,2][2,inf][-1][-2,-1][-inf,-2] [0,1][1,2][2,inf][-1][-2,-1][-inf,-2]] 
+
+		p = [0.1,
+		     0.9]
+
+		cost = 1.5 // step_size  = 1
+
+		assume that y in {0, 1}
+		'''
 
 		features = np.zeros_like(self.weights)
 		for i, f_value in enumerate(x):
@@ -204,12 +219,12 @@ class MaxEnt(GDClassifier):
 			if abs(f_value) > self.num_buckets*self.step_size:
 				idx = self.num_buckets
 			else:
-				idx = f_value//self.step_size
+				idx = abs(f_value)//self.step_size
 
 			if f_value < 0 : 
-				idx += self.num_buckets
+				idx += self.num_buckets+1
 
-			idx += i*(num_buckets*2)+2
+			idx += i*((num_buckets*2)+2)
 
 			if y is None:
 				features[:,idx] = 1 
@@ -222,13 +237,14 @@ class MaxEnt(GDClassifier):
 
 		if not as_features:
 			x = self.convert_to_features(x) # num_classes * total_num_features 
+		x = self.weights*x
 		x = np.sum(x,axis=1)
 		x = np.exp(x)
 		return x / np.sum(x) # outputs vector of size num_classes
 
 	def model_expectation(self, x):
 
-		x = self.convert_to_features(x, y)
+		x = self.convert_to_features(x)
 		model_p = self.forward(x)
 
 		expectation = model_p*x
@@ -238,12 +254,14 @@ class MaxEnt(GDClassifier):
 		'''
 		x already in features 
 		y in range(num_classes)
+
+		E[f]
 		'''
 		expectation = self.convert_to_features(x, y)
 		return expectation
 
 	def train_step(self, x, y):
-		#compute empirical expectaation for the features 
+		#compute empirical expectation for the features 
 		e_p_emp = self.empirical_expectation(x,y)
 
 		#compute model expectation for the features 
