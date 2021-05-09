@@ -88,7 +88,7 @@ class BagOfWords(object):
 		features.append(self.total_cost(h1, p) - self.total_cost(h2, p))
 
 		if self.bidirectional:
-			features.append(self.total_cost(p, h1) - self.total_cost(p, h2))
+			features.append(self.total_cost(p, h1) - self.total_cost(p, h2)) #p(h|p)
 
 		return features
 
@@ -164,6 +164,10 @@ class MaxEnt(GDClassifier):
 	which we know to be centered around zero 
 	we bucket them into discrete features using a specified stepsize
 	https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.187.9459&rep=rep1&type=pdf
+
+	
+	"This indicates that the moment constraint is not strong enough to distinguish these 
+	two different feature distributions and the resulting MaxEnt model performs poorly."
 
 	'''
 
