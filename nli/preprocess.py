@@ -29,7 +29,7 @@ def token_to_idx(dataset, delimiters = ' ', start_symbol = False, end_symbol = F
 				if not token in tok2idx:
 					tok2idx[token] = len(tok2idx) + 1
 		
-		return tok2idx
+	return tok2idx
 
 def idx_to_token(tok2idx):
 	idx2tok = dict()
