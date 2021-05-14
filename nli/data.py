@@ -95,7 +95,7 @@ class AlphaDataset(Dataset):
 			self.obs = dataset['obs']
 			self.hyp1 = dataset['hyp1']
 			self.hyp2 = dataset['hyp2']
-			self.label = dataset['label']
+			self.label = dataset['label'] # convert to 0 or 1
 
 		# for vector based models
 		elif data_type == 'h5': # load from processed data
