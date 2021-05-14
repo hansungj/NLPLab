@@ -27,7 +27,7 @@ python scripts/evaluate.py --label_dir annot_label.lst --pred_dir annot_pred.lst
 cat eval_result.json
 ```
 
-## prepare training files 
+# prepare training files 
 
 for baseline models  - outputs in pickle file
 ```
