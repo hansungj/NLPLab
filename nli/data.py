@@ -58,7 +58,6 @@ class AlphaDataset(Dataset):
 		self.data_path = data_path
 		self.vocab = vocab
 		self.max_samples = max_samples
-		self.annotate = annotate #annotation mode
 		self.eval_measure = eval_measure
 
 		#evaluation 
@@ -76,7 +75,6 @@ class AlphaDataset(Dataset):
 		#load vocab
 		with open(vocab, 'r') as f:
 			self.vocab = json.loads(f)
-
 
 		#for annotation - load witout tokenizing 
 		if self.data_type == 'tsv': # load directly from unprocessed data
@@ -112,7 +110,7 @@ class AlphaDataset(Dataset):
 
 	def __getitem__(self, idx):
 
-		if self.annotate:
+		if self.data_type == 'tsv':
 			return self.obs1[idx], self.obs2[idx], self.hyp1[idx], self.hyp2[idx], self.label[idx]
 
 		if self.data_type == 'pickle':
