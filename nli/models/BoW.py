@@ -84,14 +84,15 @@ class BagOfWords(object):
 
 			num_features = 2 if self.bidirectional else 1
 			self.coded = np.array((len(corpus), num_features), dtype=np.float32)
+			self.labels = np.array(len(corpus), dtype=np.int32)
 
-			for (ob1, obs2, hyp1, hyp2, label), i in enumerate(corpus):
-				premise = ob1 + ob2 
+			for i, (premise, hyp1, hyp2, label) in enumerate(corpus):
 				features = self.features(hyp1, hyp2, premise)
 				self.coded[:,i] = features
+				self.labels[i] = label
 
 		#train classifier 
-		self.classifier.train(self.coded)
+		self.classifier.train(self.coded, self.labels)
 
 	def features(self, h1, h2, p):
 
