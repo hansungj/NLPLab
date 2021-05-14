@@ -99,7 +99,7 @@ def main(args):
 				dataset_stories['obs'].append(obs)
 				dataset_stories['hyp1'].append(hyp1)
 				dataset_stories['hyp2'].append(hyp2)
-				dataset_stories['label'].append(label)
+				dataset_stories['label'].append( 0 if int(label) == 1 else 1 )
 
 		#implement here how to split the train into validation
 
@@ -136,7 +136,7 @@ def main(args):
 					ob_dataset[i] = obs1
 					hyp1_dataset[i] = hyp1
 					hyp2_dataset[i] = hyp2
-					label_dataset[i] = label
+					label_dataset[i] = 0 if int(label) == 1 else 1  
 
 
 if __name__ == '__main__':
