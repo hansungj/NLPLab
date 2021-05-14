@@ -22,3 +22,4 @@ nli/.DS_Store
 nli/.DS_Store
 .DS_Store
 *.jsonl
+*.pickle
