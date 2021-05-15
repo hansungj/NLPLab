@@ -137,8 +137,8 @@ class LogisticRegression(GDClassifier):
 	def __init__(self,
 				num_features,
 				lr=0.01,
-				bias = True
-				regularization=True,
+				bias = True,
+				regularization = True,
 				lmda = 0.1):
 
 		self.lr = lr
@@ -185,9 +185,9 @@ class MaxEnt(GDClassifier):
 
 	def __init__(self,
 				 num_features,
-				 num_classes=2,
-				 step_size,
+                 step_size,
 				 num_buckets,
+				 num_classes=2,
 				 lr = 0.01,
 				 reg = True,
 				 reg_lambda = 0.01):
@@ -209,7 +209,7 @@ class MaxEnt(GDClassifier):
 		# else:
 		
 		# the order is [f_1 positive, f_1 negative, f_2 positive, f_2 negative ,... ]
-		self.weights = np.ones(num_classes, (num_buckets*2+2)*num_features)
+		self.weights = np.ones((num_classes, (num_buckets*2+2)*num_features))
 		self.reset_gradient()
 
 	def convert_to_features(self, x, y=None):

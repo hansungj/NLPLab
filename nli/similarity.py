@@ -20,7 +20,7 @@ def levenshtein(x,y):
 	return dp[-1][-1]
    
  
- def distributional(x,y, distance_type = 'euclidian'):
+def distributional(x,y, distance_type = 'euclidian'):
     '''
     distance between distributional representations 
     '''
