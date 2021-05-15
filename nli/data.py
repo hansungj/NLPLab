@@ -34,16 +34,17 @@ class AlphaLoader(DataLoader):
 								max_samples,
 								eval_measure)
 
-		if kwargs['datatype'] == 'string':
+		#if kwargs['datatype'] == 'string':
+		if kwargs.pop('mode') == 'baseline':
 			kwargs['collate_fn'] = baseline_collate_fn
 		super().__init__(self.dataset, **kwargs)
 
 def baseline_collate_fn(x):
 	# leave it as is without changing ti to tensor
-	obs = x[0]
-	hyp1 = x[1]
-	hyp2 = x[2]
-	label = x[3]
+	obs = x[0][0]
+	hyp1 = x[0][1]
+	hyp2 = x[0][2]
+	label = x[0][3]
 	return obs, hyp1, hyp2, label
 
 class AlphaDataset(Dataset):
@@ -116,7 +117,7 @@ class AlphaDataset(Dataset):
 			return self.obs1[idx], self.obs2[idx], self.hyp1[idx], self.hyp2[idx], self.label[idx]
 
 		if self.data_type == 'pickle':
-			return self.obs1[idx], self.hyp1[idx], self.hyp2[idx], self.label[idx]
+			return self.obs[idx], self.hyp1[idx], self.hyp2[idx], self.label[idx]
 
 	def eval(self):
 
