@@ -34,16 +34,18 @@ class AlphaLoader(DataLoader):
 								max_samples,
 								eval_measure)
 
-		if kwargs.pop('mode') == 'baseline':
+		if kwargs['datatype'] == 'string':
+		#if kwargs.pop('mode') == 'baseline':
 			kwargs['collate_fn'] = baseline_collate_fn
 		super().__init__(self.dataset, **kwargs)
 
 
 def baseline_collate_fn(x):
-	obs = numpy.array(x[0], dtype=np.int32)
-	hyp1 = numpy.array(x[1], dtype=np.int32)
-	hyp2 = numpy.array(x[2], dtype=np.int32)
-	label = numpy.array(x[3], dtype=np.int32)
+	# leave it as is without changing ti to tensor
+	obs = x[0]
+	hyp1 = x[1]
+	hyp2 = x[2]
+	label = x[3]
 	return obs, hyp1, hyp2, label
 
 class AlphaDataset(Dataset):
