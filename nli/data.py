@@ -4,7 +4,10 @@ will contain all data loader
 '''
 
 import argparse
+import json
 import numpy as np
+import pickle
+
 
 from nli.utils import open_tsv_file
 import nli.metrics 
@@ -20,21 +23,20 @@ class AlphaLoader(DataLoader):
 	def __init__(self, **kwargs):
 
 		data_type = kwargs.pop('data_type', 'vector')
-		data_path = kwargs.pop('data_path'),
-		vocab = kwargs.pop('vocab'),
-		max_samples = kwargs.pop('max_samples', None),
+		data_path = kwargs.pop('data_path')
+		vocab = kwargs.pop('vocab')
+		max_samples = kwargs.pop('max_samples', None)
 		eval_measure = kwargs.pop('eval_measure', 'accuracy')
 		self.dataset = AlphaDataset(
 								data_type,
-								data_path
+								data_path,
 								vocab,
 								max_samples,
-								eval_measure
-								)
+								eval_measure)
 
-		if kwargs['mode'] == 'baseline':
+		if kwargs.pop('mode') == 'baseline':
 			kwargs['collate_fn'] = baseline_collate_fn
-		super(AlphaLoader, ).__init__(self.dataset, **kwargs)
+		super().__init__(self.dataset, **kwargs)
 
 
 def baseline_collate_fn(x):
@@ -74,7 +76,7 @@ class AlphaDataset(Dataset):
 
 		#load vocab
 		with open(vocab, 'r') as f:
-			self.vocab = json.loads(f)
+			self.vocab = json.loads(f.read())
 
 		#for annotation - load witout tokenizing 
 		if self.data_type == 'tsv': # load directly from unprocessed data
@@ -89,7 +91,7 @@ class AlphaDataset(Dataset):
 
 		# for baseline load without mapping to idx
 		elif self.data_type == 'pickle':
-			with open(self.data_path, 'r') as f:
+			with open(self.data_path, 'rb') as f:
 				dataset = pickle.load(f)
 
 			self.obs = dataset['obs']
