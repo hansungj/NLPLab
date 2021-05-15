@@ -103,7 +103,6 @@ def main(args):
 
 		#implement here how to split the train into validation
 
-
 		with open(output_path, 'wb') as f:
 			pickle.dump(dataset_stories, f, protocol=pickle.HIGHEST_PROTOCOL)
 	

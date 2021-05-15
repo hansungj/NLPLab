@@ -22,9 +22,22 @@ class DefaultTokenizer(object):
 	def tokenize(self, x, add_special_symbols = True):
 
 		if self.lemmatizer is None:	
-			tokenized = [self.vocab.get(t, self.null_symbol) for t in x.strip().split(self.delimiters)]
+			tokenized = x.strip().split(self.delimiters)
 		else:
-			tokenized = [self.vocab.get(self.lemmatizer.lemmatize(t), self.null_symbol) 
+			tokenized = [self.lemmatizer.lemmatize(t) for t in x.strip().split(self.delimiters)]
+
+		if add_special_symbols:
+			tokenized.insert(0, self.start_symbol)
+			tokenized.append(self.end_symbol)
+
+		return tokenized
+
+	def tokenize_and_encode(self, x, add_special_symbols = True):
+
+		if self.lemmatizer is None:	
+			tokenized = [self.vocab['token2idx'].get(t, self.null_symbol) for t in x.strip().split(self.delimiters)]
+		else:
+			tokenized = [self.vocab['token2idx'].get(self.lemmatizer.lemmatize(t), self.null_symbol) 
 									for t in x.strip().split(self.delimiters)]
 
 		if add_special_symbols:
