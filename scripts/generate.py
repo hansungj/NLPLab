@@ -105,7 +105,7 @@ def main(args):
 
 
 		with open(output_path, 'wb') as f:
-			pickle.dump('dataset_stories', f, protocol=pickle.HIGHEST_PROTOCOL)
+			pickle.dump(dataset_stories, f, protocol=pickle.HIGHEST_PROTOCOL)
 	
 
 	elif args.model_type == 'vector':
