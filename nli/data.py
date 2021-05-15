@@ -35,7 +35,6 @@ class AlphaLoader(DataLoader):
 								eval_measure)
 
 		if kwargs['datatype'] == 'string':
-		#if kwargs.pop('mode') == 'baseline':
 			kwargs['collate_fn'] = baseline_collate_fn
 		super().__init__(self.dataset, **kwargs)
 
