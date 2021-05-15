@@ -40,6 +40,7 @@ class BagOfWords(object):
 
 
 		self.vocab = vocab
+		self.classifier = classifier
 		self.sim_function = sim_function
 		self.weight_function = weight_function
 		self.bidirectional = bidirectional # consider cost(p|h) and cost(h|p)
@@ -97,8 +98,6 @@ class BagOfWords(object):
 					self.coded[i] = features[0]
 				self.labels[i] = label
 
-		#print(self.coded)
-		#print(self.labels)
 		#train classifier 
 		self.classifier.train(self.coded, self.labels)
 
@@ -125,12 +124,8 @@ class BagOfWords(object):
 class GDClassifier(object):
 
 	def train(self, x, y):
-		step_n = 0
 		for x_p, y_p in zip(x,y):
-			if step_n % 100 == 0:
-				print('Step #{}'.format(step_n))
-			step_n += 0
-			self.train_step(x,y)
+			self.train_step(x_p,y_p)
 
 		self.gradient_step()
 		self.reset_gradient()
@@ -197,7 +192,7 @@ class MaxEnt(GDClassifier):
 
 	def __init__(self,
 				 num_features,
-                 step_size,
+				 step_size,
 				 num_buckets,
 				 num_classes=2,
 				 lr = 0.01,
@@ -241,10 +236,10 @@ class MaxEnt(GDClassifier):
 
 		assume that y in {0, 1}
 		'''
-
 		features = np.zeros_like(self.weights)
 		for i, f_value in enumerate(x):
 
+			#print(f_value)
 			if abs(f_value) > self.num_buckets*self.step_size:
 				idx = self.num_buckets
 			else:
@@ -253,7 +248,8 @@ class MaxEnt(GDClassifier):
 			if f_value < 0 : 
 				idx += self.num_buckets+1
 
-			idx += i*((num_buckets*2)+2)
+			idx += i*((self.num_buckets*2)+2)
+			idx = int(idx)
 
 			if y is None:
 				features[:,idx] = 1 
@@ -274,9 +270,9 @@ class MaxEnt(GDClassifier):
 	def model_expectation(self, x):
 
 		x = self.convert_to_features(x)
-		model_p = self.forward(x)
+		model_p = self.forward(x, True)
 
-		expectation = model_p*x
+		expectation = np.dot(model_p,x)
 		return expectation
 
 	def empirical_expectation(self, x, y):
