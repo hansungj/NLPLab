@@ -83,14 +83,22 @@ class BagOfWords(object):
 		if self.coded is None:
 
 			num_features = 2 if self.bidirectional else 1
-			self.coded = np.array((len(corpus), num_features), dtype=np.float32)
-			self.labels = np.array(len(corpus), dtype=np.int32)
+			self.coded = np.zeros((len(corpus), num_features), dtype=np.float32)
+			self.labels = np.zeros(len(corpus), dtype=np.int32)
 
+			#print('Texts to process {}'.format(len(corpus)))
 			for i, (premise, hyp1, hyp2, label) in enumerate(corpus):
+				#if i % 1000 == 0:
+					#print('Texts processed: {}'.format(i))
 				features = self.features(hyp1, hyp2, premise)
-				self.coded[:,i] = features
+				try:
+					self.coded[:,i] = features
+				except IndexError:
+					self.coded[i] = features[0]
 				self.labels[i] = label
 
+		#print(self.coded)
+		#print(self.labels)
 		#train classifier 
 		self.classifier.train(self.coded, self.labels)
 
@@ -117,7 +125,11 @@ class BagOfWords(object):
 class GDClassifier(object):
 
 	def train(self, x, y):
+		step_n = 0
 		for x_p, y_p in zip(x,y):
+			if step_n % 100 == 0:
+				print('Step #{}'.format(step_n))
+			step_n += 0
 			self.train_step(x,y)
 
 		self.gradient_step()
