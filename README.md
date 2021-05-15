@@ -39,3 +39,12 @@ for deep learning models - outputs in h5 file
 ```
 python scripts/generate.py --model_type vector
 ```
+
+# train a model
+
+for baseline models 
+```
+python scripts/train.py --model_type BoW
+```
+
+

@@ -14,13 +14,13 @@ import nli.utils as utils
 from nli.data import AlphaLoader
 import nli.preprocess as preprocess
 
-from nli.models import *
+from nli.models.BoW import *
 
 parser = argparse.ArgumentParser()
 
 #directory 
 parser.add_argument('--data_dir', default='data', type=str)
-parser.add_argument('--vocab', default='vocab.json')
+parser.add_argument('--vocab', default='vocab.json', type=str)
 
 #directory for data/train/val - but questions only tokenized
 parser.add_argument('--train_pickle', default='train.pickle', type=str)
@@ -36,17 +36,17 @@ parser.add_argument('--annot_label', default='annot_label.lst', type=str)
 parser.add_argument('--output_dir', default='data', type=str)
 
 #general training settings 
-parser.add_argument('--model_type', type=str)
-parser.add_argument('--num_epochs', type=20)
+parser.add_argument('--model_type', default='BoW', type=str)
+parser.add_argument('--num_epochs', default = 20, type=int)
 parser.add_argument('--max_samples_per_epoch')
 parser.add_argument('--eval_measure', default = 'accuracy')
 
 #model - BOW options
 parser.add_argument('--bow_classifier', default='maxent', type=str)
-parser.add_argument('--bow_sim_function' default='levenshtein', type=str)
-parser.add_argument('--bow_weight_function' default=None, type=str)
-parser.add_argument('--bow_max_cost ' default=100, type=int)
-parser.add_argument('--bow_bidirectional ' default=False, type=bool)
+parser.add_argument('--bow_sim_function', default='levenshtein', type=str)
+parser.add_argument('--bow_weight_function', default=None, type=str)
+parser.add_argument('--bow_max_cost', default=100, type=int)
+parser.add_argument('--bow_bidirectional', default=False, type=bool)
 
 #model - BOW-logistic regression classifier options
 parser.add_argument('--bow_lgr_bias', default=True, type=bool)
@@ -60,8 +60,6 @@ parser.add_argument('--bow_me_num_buckets', default=10)
 parser.add_argument('--bow_me_lr', default=0.01)
 parser.add_argument('--bow_me_regularization', default=True, type=bool)
 parser.add_argument('--bow_me_regularization_coef', default=0.1)
-
-parser = argparse.ArgumentParser()
 
 #directory for data/train/val
 
@@ -84,7 +82,7 @@ def main(args):
 		elif args.bow_classifier == 'lgr':
 
 			lgr_kwargs = {
-					'num_features': 2 if args.bow_bidirectional else 1:
+					'num_features': 2 if args.bow_bidirectional else 1,
 					'lr' : args.bow_lgr_lr,
 					'bias' : args.bow_lgr_bias,
 					'regularization' : args.bow_lgr_regularization,
@@ -94,7 +92,7 @@ def main(args):
 			classifer = LogisticRegression(**lgr_kwargs)
 
 		model_kwargs = {
-					 'vocab': vocab,
+					 'vocab': args.vocab,
 					 'classifier': classifier,
 					 'sim_function': args.bow_sim_function,
 					 'weight_function': args.bow_weight_function,
@@ -108,15 +106,15 @@ def main(args):
 		vocab_path = os.path.join(args.data_dir, args.vocab)
 
 		dataset_kwargs = {
-				 'data_type':'pickle',
-				 'data_path':data_path,
-				 'vocab':vocab_path,
-				 'max_samples':args.max_samples_per_epoch,
-				 'eval_measure': args.eval_measure,
-				 'mode':'baseline'}
+				'data_type':'pickle',
+				'data_path':data_path,
+				'vocab':vocab_path,
+				'max_samples':args.max_samples_per_epoch,
+				'eval_measure': args.eval_measure,
+				'mode':'baseline'}
 
 		dataset = AlphaLoader(**dataset_kwargs)
-		model = BoW(**model_kwargs)
+		model = BagOfWords(**model_kwargs)
 
 		# for baseline 
 		for epochs in range(args.num_epochs):
@@ -131,5 +129,5 @@ def train_loop(model, dataset):
 
 
 if __name__ == '__main__':
-	args = parser.parse()
+	args = parser.parse_args()
 	main(args)
