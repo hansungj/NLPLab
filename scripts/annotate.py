@@ -65,7 +65,6 @@ def main():
 			if pred in ['1', '2']:
 				break
 			print('Please select from "1" or "2"')
-
 		print('\n')
 
 		predictions.append(pred)
