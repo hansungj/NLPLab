@@ -30,10 +30,10 @@ parser.add_argument('--model_type', default='vector')
 parser.add_argument('--tokenizer', default='default')
 parser.add_argument('--delimiter', default=' ')
 parser.add_argument('--lemmatizer', default=None)
-parser.add_argument('--start_symbol',default=True)
-parser.add_argument('--end_symbol',default=True)
+parser.add_argument('--start_symbol',default=False)
+parser.add_argument('--end_symbol',default=False)
 parser.add_argument('--null_symbol',default=True)
-parser.add_argument('--add_split_token',default=True)
+parser.add_argument('--add_split_token',default=False)
 parser.add_argument('--max_hyp_len',default=50)
 parser.add_argument('--max_ob_len',default=100)
 
@@ -46,7 +46,7 @@ def main(args):
 
 	#build vocab
 	if args.lemmatizer == 'wordnet':
-		lemmatizer = WordNetLemmatizer
+		lemmatizer = WordNetLemmatizer()
 	else:
 		lemmatizer = None
 
