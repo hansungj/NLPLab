@@ -2,7 +2,7 @@ import numpy as np
 from collections import defaultdict
 
 from nli.similarity import levenshtein
-
+from nli.metrics import log_likelihood
 
 def sigmoid(x):
 	return  1 / (1 + np.exp(-x))
@@ -14,16 +14,16 @@ def idf(corpus):
 	'''
 	d = {}
 	N = len(corpus)
-	for doc_id, doc in enumerate(corpus):
-		for token in line:
+	for doc_id, (p,h1,h2,_) in enumerate(corpus):
+		for token in p+h1+h2:
 			if token not in d:
 				d[token] = [1, doc_id]
 
 			elif doc_id != d[token][1]:
 				d[token][0] += 1
-				d[token][doc_id] = doc_id
+				d[token][1] = doc_id
 
-	d = {word:-np.log(doc_freq/N) for word, doc_freq  in d.items()}
+	d = {word:-np.log(doc_freq[0]/N) for word, doc_freq  in d.items()}
 	return d
 
 
@@ -75,31 +75,38 @@ class BagOfWords(object):
 
 		return cost
 
-	def train(self, corpus):
+	def fit(self, corpus):
 		#train weight function
 		if self.weight_function == 'idf':
 			self.weight = idf(corpus)
 
 		#go through all of training corpus and pre-calculate features once 
+		num_features = 2 if self.bidirectional else 1
+		self.coded = np.zeros((len(corpus), num_features), dtype=np.float32)
+		self.labels = np.zeros(len(corpus), dtype=np.int32)
+		for i, (premise, hyp1, hyp2, label) in enumerate(corpus):
+			
+			features = self.features(hyp1, hyp2, premise)
+			self.coded[i,:] = features
+			self.labels[i] = label
+
+	def transform(self, corpus):
+		pred = np.zeros((len(corpus), 2))
+		for i in range(len(corpus)):
+			p = self.inference(self.coded[i,:]) # size num_classes
+			pred[i,:] = p
+		return pred
+
+	def train(self, corpus):
+		
 		if self.coded is None:
-
-			num_features = 2 if self.bidirectional else 1
-			self.coded = np.zeros((len(corpus), num_features), dtype=np.float32)
-			self.labels = np.zeros(len(corpus), dtype=np.int32)
-
-			#print('Texts to process {}'.format(len(corpus)))
-			for i, (premise, hyp1, hyp2, label) in enumerate(corpus):
-				#if i % 1000 == 0:
-					#print('Texts processed: {}'.format(i))
-				features = self.features(hyp1, hyp2, premise)
-				try:
-					self.coded[:,i] = features
-				except IndexError:
-					self.coded[i] = features[0]
-				self.labels[i] = label
-
+			self.fit(corpus)
 		#train classifier 
 		self.classifier.train(self.coded, self.labels)
+		pred = self.transform(corpus)
+		L = log_likelihood(self.labels, pred)
+		return L, pred
+
 
 	def features(self, h1, h2, p):
 
@@ -111,12 +118,12 @@ class BagOfWords(object):
 
 		return features
 
-	def inference(self, h1, h2, p):
+	def inference(self, features):
 		'''
 		assume hypothesis and premise are already tokenized
 	
 		'''
-		features = self.features(h1,h2,p)
+		#features = self.features(h1,h2,p)
 		x = self.classifier.forward(features)
 		return x
 
@@ -124,20 +131,23 @@ class BagOfWords(object):
 class GDClassifier(object):
 
 	def train(self, x, y):
+		N = len(x)
 		for x_p, y_p in zip(x,y):
-			self.train_step(x_p,y_p)
+			self.train_step(x_p,y_p, N)
 
 		self.gradient_step()
 		self.reset_gradient()
 
 	def gradient_step(self):
 		self.weights -= self.lr * self.gradient
+		print(self.weights)
 
 	def reset_gradient(self):
 		self.gradient = np.zeros_like(self.weights)
 
 	def forward(self, x):
 		NotImplementedError 
+
 
 class LogisticRegression(GDClassifier):
 
@@ -155,21 +165,27 @@ class LogisticRegression(GDClassifier):
 
 		if bias:
 			num_features += 1
-
-		self.weights = np.ones(num_features+1)
+		self.weights = np.zeros(num_features)
 		self.reset_gradient()
 
-	def train_step(self, x, y):
+	def train_step(self, x, y, N):
 		'''
 		y(1-y) if i = j
 		'''
-		if bias:
+		if self.bias:
 			x = np.append(x, 1)
 		y_hat = self.forward(x)
-		self.gradient += -(y*(1-y_hat) + (1-y)*y_hat )*x
+
+		# print(y_hat)
+		# print(y)
+		# print(x)
+		
+		self.gradient += (-(y*(1-y_hat) + (1-y)*y_hat )*x)/N
 
 		if self.regularization:
-			gradient += self.lmda*self.weights
+			self.gradient += self.lmda*self.weights
+
+		return y_hat
 
 	def forward(self, x):
 		x = np.sum(self.weights*x)
@@ -189,7 +205,6 @@ class MaxEnt(GDClassifier):
 	two different feature distributions and the resulting MaxEnt model performs poorly."
 
 	'''
-
 	def __init__(self,
 				 num_features,
 				 step_size,
@@ -216,7 +231,7 @@ class MaxEnt(GDClassifier):
 		# else:
 		
 		# the order is [f_1 positive, f_1 negative, f_2 positive, f_2 negative ,... ]
-		self.weights = np.ones((num_classes, (num_buckets*2+2)*num_features))
+		self.weights = np.zeros((num_classes, (num_buckets*2+2)*num_features))
 		self.reset_gradient()
 
 	def convert_to_features(self, x, y=None):
@@ -239,7 +254,6 @@ class MaxEnt(GDClassifier):
 		features = np.zeros_like(self.weights)
 		for i, f_value in enumerate(x):
 
-			#print(f_value)
 			if abs(f_value) > self.num_buckets*self.step_size:
 				idx = self.num_buckets
 			else:
@@ -272,7 +286,7 @@ class MaxEnt(GDClassifier):
 		x = self.convert_to_features(x)
 		model_p = self.forward(x, True)
 
-		expectation = np.dot(model_p,x)
+		expectation = model_p.reshape(2, 1)*x
 		return expectation
 
 	def empirical_expectation(self, x, y):
@@ -285,7 +299,7 @@ class MaxEnt(GDClassifier):
 		expectation = self.convert_to_features(x, y)
 		return expectation
 
-	def train_step(self, x, y):
+	def train_step(self, x, y, N):
 		#compute empirical expectation for the features 
 		e_p_emp = self.empirical_expectation(x,y)
 
@@ -293,22 +307,14 @@ class MaxEnt(GDClassifier):
 		e_p_model = self.model_expectation(x)
 
 		#compute gradient
-		self.gradient += e_p_emp - e_p_model
+		self.gradient -= (e_p_emp - e_p_model)/N
 
 		#L2 regularization: lambda * W^2, or W^2/(2*sigma^2)
 		if self.reg:
-			self.gradient -= self.reg_lambda*self.weights
+			self.gradient += (self.reg_lambda*self.weights)/N
 
 
 if __name__ == '__main__':
-	model = BagOfWords(
-				 None,
-				 sim_function='levenshtein',
-				 weight_function=None,
-				 classifier_type = None,
-				 max_cost = 100,
-				 bidirectional = False,
-				 )
 
 	p1 = 'Chad went to get the wheel alignment measured on his car'	
 	p2 = 'The mechanic provided a working alignment with new body work'	
@@ -319,7 +325,32 @@ if __name__ == '__main__':
 	p = p.lower().split(' ')
 	h1 = h1.lower().split(' ')
 	h2 = h2.lower().split(' ')
-	label = 2
+	label = 1
 
-	pred = model.inference(h1, h2, p)
-	print(pred)
+	classifier = MaxEnt(num_features=1,
+				 step_size=0.5,
+				 num_buckets=4,
+				 num_classes=2,
+				 lr = 0.01,
+				 reg = True,
+				 reg_lambda = 0.01)
+
+	classifier = LogisticRegression(num_features=1,
+				lr=0.01,
+				bias = True,
+				regularization = True,
+				lmda = 0.1)
+
+	model = BagOfWords({},
+				 classifier,
+				 sim_function='levenshtein',
+				 weight_function=None,
+				 max_cost = 100,
+				 bidirectional = False)
+
+
+	for i in range(10):
+		model.train([(p, h1, h2, label),(p, h1, h2, label)])
+
+	print(model.coded)
+	print(model.labels)
