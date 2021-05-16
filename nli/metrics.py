@@ -1,6 +1,48 @@
 #metrics.py 
 
-import numpy 
+import numpy as np
+from collections import defaultdict
+
+
+class MetricKeeper(object):
+
+	def __init__(self, eval_measures):
+
+		assert(isinstance(eval_measures, list))
+
+		self.keeper = defaultdict(dict)
+		self.eval_functions = []
+		for eval_name in eval_measures:
+
+			if eval_name == 'accuracy':
+				self.eval_functions.append((accuracy, 'accuracy'))
+			elif eval_name == 'precision':
+				self.eval_functions.append((precision, 'precision'))
+			elif eval_name == 'recall':
+				self.eval_functions.append((recall, 'recall'))
+			elif eval_name == 'fscore':
+				self.eval_functions.append((fscore, 'fscore'))
+
+	def eval(self, y, y_pred, i):
+		for eval_f, eval_n in self.eval_functions:
+			eval_r = eval_f(y, y_pred)
+			self.keeper[eval_n][i] = eval_r
+
+	def update(self, eval_name, eval_r, i):
+		#manually update 
+		self.keeper[eval_name][i] = eval_r
+
+def log_likelihood(y, y_pred, k=2):
+	'''
+	assume that y_pred has dim [N,k]
+	'''
+	epsilon = 1e-8
+	if k==2:
+		y_ = np.zeros((len(y),k))
+		y_[y] = 1
+	# y_pred's are probabilities 
+	L = -np.sum(y_*np.log(y_pred+epsilon)) #/len(y)
+	return L
 
 
 def accuracy(y_true, y_pred):
