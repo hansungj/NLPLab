@@ -18,29 +18,35 @@ def levenshtein(x,y):
 				dp[i][j] = min(dp[i-1][j-1]+1, dp[i-1][j]+1, dp[i][j-1]+1) 
 
 	return dp[-1][-1]
-   
- 
-def distributional(x,y, distance_type = 'euclidian'):
-    '''
-    distance between distributional representations 
-    '''
-    
-    dist = 0
-    
-    if distance_type == 'euclidian':
-        for i in len(x_):
-            dist += (x - y)**2
-        dist = math.sqrt(dist)
-        
-    elif distance_type == 'cosine':
-        dist = np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
-        
-    elif distance_type == 'coocurrence':
-        dist = x[y] / np.sum(x)
-    
-    else:
-        raise ValueError('This distance type is not supported')
-    return dist
+
+
+def distributional(x,y):
+	'''
+	check coocurrence value
+	'''
+	dist = 0
+	dist = x[y] / np.sum(x)
+	return dist
+
+
+def cosine(x,y):
+	'''
+	cosine tokens' distance
+	'''
+	dist = 0
+	dist = np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+	return dist
+
+
+def euclidian(x,y):
+	'''
+	euclidian tokens' distance
+	'''
+	dist = 0
+	for i in range(len(x)):
+		dist += (x[i] - y[i])**2
+	dist = math.sqrt(dist)
+	return dist
 
 
 if __name__ == '__main__':

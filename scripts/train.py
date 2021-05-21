@@ -53,6 +53,10 @@ parser.add_argument('--bow_weight_function', default='idf', type=str)
 parser.add_argument('--bow_max_cost', default=100, type=int)
 parser.add_argument('--bow_bidirectional', default=False, type=bool)
 
+#model - BOW-perceptron classifier options
+parser.add_argument('--bow_prc_bias', default=True, type=bool)
+parser.add_argument('--bow_prc_lr', default=0.1, type=float)
+
 #model - BOW-logistic regression classifier options
 parser.add_argument('--bow_lgr_bias', default=True, type=bool)
 parser.add_argument('--bow_lgr_lr', default=0.1, type=float)
@@ -104,8 +108,20 @@ def main(args):
 			logger.info(lgr_kwargs)
 			classifier = LogisticRegression(**lgr_kwargs)
 
+		elif args.bow_classifier == 'prc':
+
+			prc_kwargs = {
+					'num_features': 2 if args.bow_bidirectional else 1,
+					'lr' : args.bow_prc_lr,
+					'bias' : args.bow_prc_bias}
+
+			logger.info(prc_kwargs)
+			classifier = Perceptron(**prc_kwargs)
+
+		vocab_path = os.path.join(args.data_dir, args.vocab)
+
 		model_kwargs = {
-					 'vocab': args.vocab,
+					 'vocab': vocab_path,
 					 'classifier': classifier,
 					 'sim_function': args.bow_sim_function,
 					 'weight_function': args.bow_weight_function,
@@ -117,8 +133,6 @@ def main(args):
 
 
 		data_path = os.path.join(args.data_dir, args.train_pickle)
-		vocab_path = os.path.join(args.data_dir, args.vocab)
-
 
 		logger.info('DATA PATH:')
 		logger.info(data_path)
@@ -146,10 +160,12 @@ def main(args):
 		model.fit(dataset)
 		logger.info('Fitting BoW took {:.2f}s - {:.5f}s per data point'.format(starttime - time.time(), (starttime - time.time()) / len(dataset.dataset)))
 
+		print('!')
 		print(model.coded)
 		print(model.labels)
 
 		for epoch in range(args.num_epochs):
+			print('Epoch #{}/{}'.format(epoch, args.num_epochs))
 			L, pred = model.train(dataset)
 
 			#update keepr for log liklihood

@@ -1,8 +1,11 @@
 import numpy as np
 from collections import defaultdict
 
-from nli.similarity import levenshtein
+from nli.similarity import levenshtein, distributional, cosine, euclidian
 from nli.metrics import log_likelihood
+
+import json
+
 
 def sigmoid(x):
 	return  1 / (1 + np.exp(-x))
@@ -26,6 +29,49 @@ def idf(corpus):
 	d = {word:-np.log(doc_freq[0]/N) for word, doc_freq  in d.items()}
 	return d
 
+def distributional_represent(x, cooccurence_dict, vocab):
+	json_file = open(vocab)
+	vocab = json.load(json_file)
+    
+	token2idx = vocab['token2idx']
+	x_represent = np.zeros(len(token2idx))
+    
+	for idx in cooccurence_dict[token2idx[x[0]]]:
+		x_represent[idx-1] = cooccurence_dict[token2idx[x[0]]][idx]
+        
+	return x_represent
+
+def build_coocurences(corpus, vocab, window = 2):
+	json_file = open(vocab)
+	vocab = json.load(json_file)
+	token2idx = vocab['token2idx']
+	cooccurence_dict = defaultdict(dict)
+
+	for (p,h1,h2,_) in corpus:
+		for sent in (p,h1,h2):
+			for i in range(len(sent)):
+				
+				cur_token = token2idx[sent[i][0]]
+				
+				left_edge = max(i-window,0)
+				right_edge = min(i+window,len(sent)-1)
+
+				for l in range(left_edge,i):
+					neighbor_token = token2idx[sent[l][0]]
+					if neighbor_token in cooccurence_dict[cur_token]:
+						cooccurence_dict[cur_token][neighbor_token] += 1
+					else:
+						cooccurence_dict[cur_token][neighbor_token] = 1
+
+				for r in range(i+1,right_edge+1):
+					neighbor_token = token2idx[sent[r][0]]
+					if neighbor_token in cooccurence_dict[cur_token]:
+						cooccurence_dict[cur_token][neighbor_token] += 1
+					else:
+						cooccurence_dict[cur_token][neighbor_token] = 1
+	print(len(cooccurence_dict))			
+	return cooccurence_dict
+
 
 class BagOfWords(object):
 
@@ -34,6 +80,7 @@ class BagOfWords(object):
 				 classifier,
 				 sim_function='levenshtein',
 				 weight_function=None,
+				 cooccurence_dict = None,
 				 max_cost = 100,
 				 bidirectional = False,
 				 ):
@@ -49,6 +96,12 @@ class BagOfWords(object):
 
 		if self.sim_function == 'levenshtein':
 			self.sim = levenshtein
+		elif self.sim_function == 'distributional':
+			self.sim = distributional
+		elif self.sim_function == 'cosine':
+			self.sim = cosine
+		elif self.sim_function == 'euclidian':
+			self.sim = euclidian
 		else:
 			raise ValueError('we dont recognize this similarity function')
 
@@ -60,9 +113,42 @@ class BagOfWords(object):
 
 
 	def alignment_cost(self, w1, w2):
-		
-		sim =  1 - self.sim(w1, w2)/max(len(w1),len(w2))
-		cost = -1*np.log(sim+1)
+		#print('Words are {} and {}'.format(w1,w2))
+		if self.sim_function in ['cosine', 'euclidian']:
+			w1 = distributional_represent(w1, self.cooccurence_dict, self.vocab)
+			w2 = distributional_represent(w2, self.cooccurence_dict, self.vocab)
+
+			if self.sim_function == 'cosine':
+				sim = self.sim(w1, w2)
+				cost = 1 - sim
+			else:
+				try:
+					sim = 1 / self.sim(w1, w2)
+				except ZeroDivisionError:
+					sim = 1
+				cost = 1 - sim
+
+
+		elif self.sim_function == 'distributional':
+			w1 = distributional_represent(w1, self.cooccurence_dict, self.vocab)
+
+			json_file = open(self.vocab)
+			vocab = json.load(json_file)
+			token2idx = vocab['token2idx']
+			w2 = token2idx[w2[0]]
+
+			sim = self.sim(w1, w2)
+			try:
+				cost = 1 / sim
+			except ZeroDivisionError:
+				cost = 1
+
+		else:
+			sim =  1 - self.sim(w1, w2)/max(len(w1),len(w2))
+			cost = -1*np.log(sim+1)
+
+		#print('sim = {}'.format(sim))
+		#print('cost = {}'.format(cost))
 		return cost 
 
 	def total_cost(self, hypothesis, premise):
@@ -77,6 +163,8 @@ class BagOfWords(object):
 
 	def fit(self, corpus):
 		#train weight function
+		if self.sim_function in ['distributional', 'cosine', 'euclidian']:
+			self.cooccurence_dict = build_coocurences(corpus, self.vocab)
 		if self.weight_function == 'idf':
 			self.weight = idf(corpus)
 
@@ -84,11 +172,16 @@ class BagOfWords(object):
 		num_features = 2 if self.bidirectional else 1
 		self.coded = np.zeros((len(corpus), num_features), dtype=np.float32)
 		self.labels = np.zeros(len(corpus), dtype=np.int32)
+		print(self.coded)
+		print(self.labels)
 		for i, (premise, hyp1, hyp2, label) in enumerate(corpus):
 			
 			features = self.features(hyp1, hyp2, premise)
 			self.coded[i,:] = features
 			self.labels[i] = label
+
+		print(self.coded)
+		print(self.labels)
 
 	def transform(self, corpus):
 		pred = np.zeros((len(corpus), 2))
@@ -148,6 +241,38 @@ class GDClassifier(object):
 	def forward(self, x):
 		NotImplementedError 
 
+class Perceptron(GDClassifier):
+
+	def __init__(self,
+				num_features,
+				lr=1,
+				bias = True):
+
+		self.lr = lr
+		self.bias = bias
+
+		if bias:
+			num_features += 1
+		self.weights = np.zeros(num_features)
+		self.reset_gradient()
+
+	def train_step(self, x, y, N):
+		if self.bias:
+			x = np.append(x, 1)
+		y_hat = self.forward(x)
+
+		print("predict: {}".format(y_hat))
+		print("label: {}".format(y))
+		print("data: {}".format(x))
+		
+		self.gradient += -y_hat*x
+
+		return y_hat
+
+	def forward(self, x):
+		x = np.sum(self.weights*x)
+		x = np.sign(x)
+		return x
 
 class LogisticRegression(GDClassifier):
 
@@ -251,6 +376,7 @@ class MaxEnt(GDClassifier):
 
 		assume that y in {0, 1}
 		'''
+		print("Initial features are: {}".format(x))
 		features = np.zeros_like(self.weights)
 		for i, f_value in enumerate(x):
 
@@ -327,19 +453,23 @@ if __name__ == '__main__':
 	h2 = h2.lower().split(' ')
 	label = 1
 
-	classifier = MaxEnt(num_features=1,
-				 step_size=0.5,
-				 num_buckets=4,
-				 num_classes=2,
-				 lr = 0.01,
-				 reg = True,
-				 reg_lambda = 0.01)
+	#classifier = MaxEnt(num_features=1,
+				 #step_size=0.5,
+				 #num_buckets=4,
+				 #num_classes=2,
+				 #lr = 0.01,
+				 #reg = True,
+				 #reg_lambda = 0.01)
 
-	classifier = LogisticRegression(num_features=1,
-				lr=0.01,
-				bias = True,
-				regularization = True,
-				lmda = 0.1)
+	#classifier = LogisticRegression(num_features=1,
+				#lr=0.01,
+				#bias = True,
+				#regularization = True,
+				#lmda = 0.1)
+
+	classifier = Perceptron(num_features=1,
+				lr=1,
+				bias = True)
 
 	model = BagOfWords({},
 				 classifier,
