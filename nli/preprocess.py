@@ -123,7 +123,7 @@ def token_to_idx(dataset,
 		tok2idx['SPLT'] = 4
 
 	for token, count in freq_count.items():
-		if count >= min_occurence:
+		if count >= min_occurence and (not token in tok2idx.keys()):
 			tok2idx[token] = len(tok2idx) + 1
 	return tok2idx
 
