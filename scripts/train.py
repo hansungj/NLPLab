@@ -59,22 +59,26 @@ parser.add_argument('--bow_max_cost', default=100, type=int, help='maximum cost 
 parser.add_argument('--bow_bidirectional', default=False, type=bool, help='If True, two features are considered, p(h|p) and p(p|h)')
 parser.add_argument('--bow_lemmatize', default=False, type=bool, help='lemmatize the tokens or not')
 
-#model - BOW-perceptron classifier options
+#BoW - BOW-perceptron classifier options
 parser.add_argument('--bow_prc_bias', default=True, type=bool)
 parser.add_argument('--bow_prc_lr', default=0.1, type=float)
 
-#model - BOW-logistic regression classifier options
+#BoW  - BOW-logistic regression classifier options
 parser.add_argument('--bow_lgr_bias', default=True, type=bool, help='Use bias or not')
 parser.add_argument('--bow_lgr_lr', default=0.1, type=float, help='learning rate for the gradient update')
 parser.add_argument('--bow_lgr_regularization', default=True, help='L2 regularization for logistic regression')
 parser.add_argument('--bow_lgr_regularization_coef', default=0.1, help='L2 regularization weighting')
 
-#model - BOW-Maximum entropy classifier options
+#BoW  - BOW-Maximum entropy classifier options
 parser.add_argument('--bow_me_step_size', default=0.1, type=float, help='size of the bucket - convert continous to a set of discrete features through bucketing')
 parser.add_argument('--bow_me_num_buckets', default=30, type=int, help='number of buckets to use with step_size sized')
 parser.add_argument('--bow_me_lr', default=0.1, type=float, help='learning rate for the gradient update')
 parser.add_argument('--bow_me_regularization', default=True, type=bool, help= 'L2 regularization for maximum entropy')
 parser.add_argument('--bow_me_regularization_coef', default=0.1, help='L2 regularization weighting')
+
+#model - pretrained embedding options
+
+
 
 #directory for data/train/val
 
@@ -186,11 +190,19 @@ def main(args):
 			for eval_name, eval_history in val_stats.keeper.items():
 				logger.info('Validation {} - {}'.format( eval_name, eval_history))
 
+	# for other models we need to load vocabulary 
+
+	'''
+	1. check here that vocabulary given here is good 
+	2. initialize tokenizer with the vocabulary
+	3. initialize dataloader  - write a dataloader with tokenizer as the argument / write a collate fn that automatically pads 
+	4. write training loop / evaluatation loop 
+	'''
+
 	# for deep learning models - we can share the same training loop 
 	for epochs in range(args.num_epochs):
 		#train_loop(model, dataset)
 		pass
-
 
 	stats_name = '_'.join([args.model_type, args.output_name,'stats.json'])
 	output_path = os.path.join(args.output_dir, stats_name)
@@ -203,6 +215,9 @@ def main(args):
 
 	with open(output_path, 'w') as f:
 		json.dump(checkpoint, f, indent=4)
+
+
+
 
 def train(model, dataloader):
 	return None
