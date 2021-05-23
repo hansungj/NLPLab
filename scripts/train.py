@@ -26,17 +26,17 @@ logger = logging.getLogger(__name__)
 parser.add_argument('--data_dir', default='data', type=str)
 parser.add_argument('--vocab', default=None, type=str)
 
-#directory for data/train/val - but questions only tokenized
+#directory for data/train/val 
 parser.add_argument('--train_tsv', default='data/alphanli/tsv/train.tsv', type=str)
 parser.add_argument('--val_tsv', default='data/alphanli/tsv/dev.tsv', type=str)
 
 #directory for data/train/val - but questions only tokenized
-parser.add_argument('--train_pickle', default='train.pickle', type=str)
-parser.add_argument('--val_pickle', default='dev.pickle', type=str)
+# parser.add_argument('--train_pickle', default='train.pickle', type=str)
+# parser.add_argument('--val_pickle', default='dev.pickle', type=str)
 
-#directory for data/train/val - but questions preprocessed
-parser.add_argument('--train_h5', default='alphanli/tsv/train.h5', type=str)
-parser.add_argument('--val_h5', default='alphanli/tsv/dev.h5', type=str)
+# #directory for data/train/val - but questions preprocessed
+# parser.add_argument('--train_h5', default='alphanli/tsv/train.h5', type=str)
+# parser.add_argument('--val_h5', default='alphanli/tsv/dev.h5', type=str)
 
 #directory for output
 parser.add_argument('--annot_pred', default='annot_pred.lst', type=str)
@@ -52,29 +52,29 @@ parser.add_argument('--evaluate', default=True, type=int, help='Decide to evalua
 parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evluation measure') # put multiple eval measures separated by ','
 
 #model - BOW options
-parser.add_argument('--bow_classifier', default='maxent', type=str)
-parser.add_argument('--bow_sim_function', default='levenshtein', type=str)
-parser.add_argument('--bow_weight_function', default='idf', type=str)
-parser.add_argument('--bow_max_cost', default=100, type=int)
-parser.add_argument('--bow_bidirectional', default=False, type=bool)
-parser.add_argument('--bow_lemmatize', default=False, type=bool)
+parser.add_argument('--bow_classifier', default='maxent', type=str, help='Maximum entropy classifier / Logistic Regression / Perceptron')
+parser.add_argument('--bow_sim_function', default='levenshtein', type=str, help='similarity function to compare tokens')
+parser.add_argument('--bow_weight_function', default='idf', type=str, help='lexical weighting function for alignment cost')
+parser.add_argument('--bow_max_cost', default=100, type=int, help='maximum cost constraint')
+parser.add_argument('--bow_bidirectional', default=False, type=bool, help='If True, two features are considered, p(h|p) and p(p|h)')
+parser.add_argument('--bow_lemmatize', default=False, type=bool, help='lemmatize the tokens or not')
 
 #model - BOW-perceptron classifier options
 parser.add_argument('--bow_prc_bias', default=True, type=bool)
 parser.add_argument('--bow_prc_lr', default=0.1, type=float)
 
 #model - BOW-logistic regression classifier options
-parser.add_argument('--bow_lgr_bias', default=True, type=bool)
-parser.add_argument('--bow_lgr_lr', default=0.1, type=float)
-parser.add_argument('--bow_lgr_regularization', default=True)
-parser.add_argument('--bow_lgr_regularization_coef', default=0.1)
+parser.add_argument('--bow_lgr_bias', default=True, type=bool, help='Use bias or not')
+parser.add_argument('--bow_lgr_lr', default=0.1, type=float, help='learning rate for the gradient update')
+parser.add_argument('--bow_lgr_regularization', default=True, help='L2 regularization for logistic regression')
+parser.add_argument('--bow_lgr_regularization_coef', default=0.1, help='L2 regularization weighting')
 
 #model - BOW-Maximum entropy classifier options
-parser.add_argument('--bow_me_step_size', default=0.2, type=float)
-parser.add_argument('--bow_me_num_buckets', default=10, type=int)
-parser.add_argument('--bow_me_lr', default=0.1, type=float)
-parser.add_argument('--bow_me_regularization', default=True, type=bool)
-parser.add_argument('--bow_me_regularization_coef', default=0.1)
+parser.add_argument('--bow_me_step_size', default=0.1, type=float, help='size of the bucket - convert continous to a set of discrete features through bucketing')
+parser.add_argument('--bow_me_num_buckets', default=30, type=int, help='number of buckets to use with step_size sized')
+parser.add_argument('--bow_me_lr', default=0.1, type=float, help='learning rate for the gradient update')
+parser.add_argument('--bow_me_regularization', default=True, type=bool, help= 'L2 regularization for maximum entropy')
+parser.add_argument('--bow_me_regularization_coef', default=0.1, help='L2 regularization weighting')
 
 #directory for data/train/val
 
