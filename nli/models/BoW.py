@@ -12,7 +12,6 @@ from tqdm import tqdm
 def sigmoid(x):
 	return  1 / (1 + np.exp(-x))
 
-
 class BagOfWordsWrapper(object):
 
 	def idf(self, corpus):
@@ -33,8 +32,12 @@ class BagOfWordsWrapper(object):
 
 		d = {word:-np.log(doc_freq[0]/N) for word, doc_freq  in d.items()}
 
+		#calculate average weighting to use for OOV words 
+		avg = sum(d.values())/len(d)
+		
 		#save 
 		self.weight = d
+		self.weight_avg = avg
 
 	def distributional_represent(self, x, cooccurence_dict, vocab): # make it compatible 
 		json_file = open(vocab)
@@ -153,13 +156,11 @@ class BagOfWords(BagOfWordsWrapper):
 
 		else:
 			if self.lemmatize:
-				w1 = self.lematizer.lemmatize(w1)
-				w2 = self.lematizer.lemmatize(w1)
+				w1 = self.lemmatizer.lemmatize(w1)
+				w2 = self.lemmatizer.lemmatize(w1)
+
 			sim =  1 - self.sim(w1, w2)/max(len(w1),len(w2))
 			cost = -1*np.log(sim+1)
-
-		#print('sim = {}'.format(sim))
-		#print('cost = {}'.format(cost))
 		return cost 
 
 	def total_cost(self, hypothesis, premise):
@@ -167,7 +168,7 @@ class BagOfWords(BagOfWordsWrapper):
 		cost = 0
 		for h in hypothesis:
 			min_cost = min(self.alignment_cost(h,p) if self.weight is None  
-							else self.weight.get(h,self.max_cost)*self.alignment_cost(h,p)for p in premise)
+							else self.weight.get(h,self.weight_avg)*self.alignment_cost(h,p)for p in premise)
 			cost += min(self.max_cost, min_cost)
 
 		return cost
