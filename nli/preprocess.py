@@ -3,12 +3,13 @@ import re
 from collections import defaultdict
 import json
 
+
 def tokenize(sent, 
 			delimiters = r'\s+', 
 			start_symbol=True, 
 			end_symbol=True):
 
-	tokenized = [t for t in re.split(delimiters, sent) if t != ""]
+	tokenized = re.split(delimiters, sent)
 	if start_symbol:
 		tokenized = ['START'] + tokenized
     
