@@ -34,17 +34,13 @@ def main():
 	if max_samples is None:
 		raise ValueError('Please provide number of samples')
 	
-	dataset = AlphaDataset(tsv_path,
-				 		   vocab=vocab,
-				 		   max_samples=max_samples,
-				 		   annotate=True)
-
-	data_choices = range(len(dataset.label))
+	dataset = open_tsv_file(tsv_path)
+	data_choices = range(len(dataset)
 	predictions = []
 	labels = []
 	for i in range(max_samples):
 		idx = random.choice(data_choices)
-		obs1, obs2, hyp1, hyp2, label = dataset[idx]
+		_, obs1, obs2, hyp1, hyp2, label = dataset[idx]
 
 		labels.append(label)
 
