@@ -10,7 +10,7 @@ class MetricKeeper(object):
 
 		assert(isinstance(eval_measures, list))
 
-		self.keeper = defaultdict(dict)
+		self.keeper = defaultdict(list)
 		self.eval_functions = []
 		for eval_name in eval_measures:
 
@@ -23,14 +23,15 @@ class MetricKeeper(object):
 			elif eval_name == 'fscore':
 				self.eval_functions.append((fscore, 'fscore'))
 
-	def eval(self, y, y_pred, i):
+	def eval(self, y, y_pred):
 		for eval_f, eval_n in self.eval_functions:
 			eval_r = eval_f(y, y_pred)
-			self.keeper[eval_n][i] = eval_r
+			self.keeper[eval_n].append(eval_r)
 
-	def update(self, eval_name, eval_r, i):
+	def update(self, eval_name, eval_r):
 		#manually update 
-		self.keeper[eval_name][i] = eval_r
+		self.keeper[eval_name].append(eval_r)
+
 
 def log_likelihood(y, y_pred, k=2):
 	'''
