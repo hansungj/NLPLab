@@ -1,17 +1,14 @@
 import numpy as np
 import re
 from collections import defaultdict
+import json
 
 def tokenize(sent, 
-			delimiters = ' ', 
+			delimiters = r'\s+', 
 			start_symbol=True, 
-			end_symbol=True,
-			lemmatizer=None):
+			end_symbol=True):
 
 	tokenized = [t for t in re.split(delimiters, sent) if t != ""]
-	if lemmatizer is not None:
-		tokenized = [lemmatizer.lemmatize(t) for t in tokenized]
-
 	if start_symbol:
 		tokenized = ['START'] + tokenized
     
@@ -19,15 +16,7 @@ def tokenize(sent,
 		tokenized = tokenized + ['END']
 	return tokenized
 
-
-def token_to_idx(dataset, 
-			delimiters = ' ', 
-			start_symbol = False, 
-			end_symbol = False, 
-			null_symbol = False,
-			split_symbol = False,
-			lemmatizer = None,
-			min_occurence = 1):
+def frequency_count(dataset):
 
 	freq_count = defaultdict(int)
 
@@ -36,8 +25,17 @@ def token_to_idx(dataset,
 		textdata = [obs1, obs2, hyp1, hyp2]
 		
 		for textelem in textdata:
-			for token in tokenize(textelem, ' ',  start_symbol, end_symbol, lemmatizer):
+			for token in tokenize(textelem, delimiters ,  start_symbol, end_symbol):
 				freq_count[token] += 1
+
+	return freq_count
+
+def token_to_idx(freq_count, 
+			delimiters = r'\s+', 
+			start_symbol = False, 
+			end_symbol = False, 
+			null_symbol = False,
+			split_symbol = False):
 	
 	tok2idx = {}
 	# 0 for pad 
@@ -53,20 +51,18 @@ def token_to_idx(dataset,
 	if split_symbol:
 		tok2idx['SPLT'] = 4
 
-	for token, count in freq_count.items():
-		if count >= min_occurence and (not token in tok2idx.keys()):
-			tok2idx[token] = len(tok2idx) + 1
+	for k, v in freq_count.items():
+		tok2idx[k] = len(tok2idx)
+
 	return tok2idx
 
+
 def idx_to_token(tok2idx):
-	idx2tok = dict()
-	for k,v in tok2idx.items():
-		idx2tok[v] = k
+	idx2tok = {v:k for k,v in tok2idx.items()} 
 	return idx2tok
 
 def encode(tokenized_sentence, tok2idx, null_token='NULL'):
 	encoded = []
-
 	null_idx = tok2idx[null]
 	for token in tokenized_sentence:
 		encoded.append(tok2idx.get(token, null_idx))
