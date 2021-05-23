@@ -43,7 +43,7 @@ def open_tsv_file(path, dic=False):
 				res['obs2'].append(line[2])
 				res['hyp1'].append(line[3])
 				res['hyp2'].append(line[4])
-				res['label'].append(line[5])
+				res['label'].append(0 if int(line[5])==1 else 1)
 
 			return res
 
