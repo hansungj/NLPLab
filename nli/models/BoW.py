@@ -5,93 +5,98 @@ from nli.similarity import levenshtein, distributional, cosine, euclidian
 from nli.metrics import log_likelihood
 
 import json
+from nltk.stem.wordnet import WordNetLemmatizer
+from tqdm import tqdm
 
 
 def sigmoid(x):
 	return  1 / (1 + np.exp(-x))
 
-def idf(corpus):
-	'''
-	build idfs
-	
-	'''
-	d = {}
-	N = len(corpus)
-	for doc_id, (p,h1,h2,_) in enumerate(corpus):
-		for token in p+h1+h2:
-			if token not in d:
-				d[token] = [1, doc_id]
 
-			elif doc_id != d[token][1]:
-				d[token][0] += 1
-				d[token][1] = doc_id
+class BagOfWordsWrapper(object):
 
-	d = {word:-np.log(doc_freq[0]/N) for word, doc_freq  in d.items()}
-	return d
+	def idf(self, corpus):
+		'''
+		build idfs - for lexical weighting 
+		
+		'''
+		d = {}
+		N = len(corpus)
+		for doc_id, (p,h1,h2,_) in enumerate(corpus):
+			for token in p+h1+h2:
+				if token not in d:
+					d[token] = [1, doc_id]
 
-def distributional_represent(x, cooccurence_dict, vocab):
-	json_file = open(vocab)
-	vocab = json.load(json_file)
-    
-	token2idx = vocab['token2idx']
-	x_represent = np.zeros(len(token2idx))
-    
-	for idx in cooccurence_dict[token2idx[x[0]]]:
-		x_represent[idx-1] = cooccurence_dict[token2idx[x[0]]][idx]
-        
-	return x_represent
+				elif doc_id != d[token][1]:
+					d[token][0] += 1
+					d[token][1] = doc_id
 
-def build_coocurences(corpus, vocab, window = 2):
-	json_file = open(vocab)
-	vocab = json.load(json_file)
-	token2idx = vocab['token2idx']
-	cooccurence_dict = defaultdict(dict)
+		d = {word:-np.log(doc_freq[0]/N) for word, doc_freq  in d.items()}
 
-	for (p,h1,h2,_) in corpus:
-		for sent in (p,h1,h2):
-			for i in range(len(sent)):
-				
-				cur_token = token2idx[sent[i][0]]
-				
-				left_edge = max(i-window,0)
-				right_edge = min(i+window,len(sent)-1)
+		#save 
+		self.weight = d
 
-				for l in range(left_edge,i):
-					neighbor_token = token2idx[sent[l][0]]
-					if neighbor_token in cooccurence_dict[cur_token]:
-						cooccurence_dict[cur_token][neighbor_token] += 1
-					else:
-						cooccurence_dict[cur_token][neighbor_token] = 1
+	def distributional_represent(self, x, cooccurence_dict, vocab): # make it compatible 
+		json_file = open(vocab)
+		vocab = json.load(json_file)
+	    
+		token2idx = vocab['token2idx']
+		x_represent = np.zeros(len(token2idx))
+	    
+		for idx in cooccurence_dict[token2idx[x[0]]]:
+			x_represent[idx-1] = cooccurence_dict[token2idx[x[0]]][idx]
+	        
+		return x_represent
 
-				for r in range(i+1,right_edge+1):
-					neighbor_token = token2idx[sent[r][0]]
-					if neighbor_token in cooccurence_dict[cur_token]:
-						cooccurence_dict[cur_token][neighbor_token] += 1
-					else:
-						cooccurence_dict[cur_token][neighbor_token] = 1
-	print(len(cooccurence_dict))			
-	return cooccurence_dict
+	def build_coocurences(self, corpus, vocab, window = 2): #make it compatible 
+		json_file = open(vocab)
+		vocab = json.load(json_file)
+		token2idx = vocab['token2idx']
+		cooccurence_dict = defaultdict(dict)
 
+		for (p,h1,h2,_) in corpus:
+			for sent in (p,h1,h2):
+				for i in range(len(sent)):
+					
+					cur_token = token2idx[sent[i][0]]
+					
+					left_edge = max(i-window,0)
+					right_edge = min(i+window,len(sent)-1)
 
-class BagOfWords(object):
+					for l in range(left_edge,i):
+						neighbor_token = token2idx[sent[l][0]]
+						if neighbor_token in cooccurence_dict[cur_token]:
+							cooccurence_dict[cur_token][neighbor_token] += 1
+						else:
+							cooccurence_dict[cur_token][neighbor_token] = 1
+
+					for r in range(i+1,right_edge+1):
+						neighbor_token = token2idx[sent[r][0]]
+						if neighbor_token in cooccurence_dict[cur_token]:
+							cooccurence_dict[cur_token][neighbor_token] += 1
+						else:
+							cooccurence_dict[cur_token][neighbor_token] = 1
+		print(len(cooccurence_dict))			
+		return cooccurence_dict #make just self.cooccurence_dict 
+
+class BagOfWords(BagOfWordsWrapper):
 
 	def __init__(self,
-				 vocab,
 				 classifier,
 				 sim_function='levenshtein',
 				 weight_function=None,
 				 cooccurence_dict = None,
 				 max_cost = 100,
 				 bidirectional = False,
+				 lemmatize = False,
 				 ):
 
-
-		self.vocab = vocab
 		self.classifier = classifier
 		self.sim_function = sim_function
 		self.weight_function = weight_function
 		self.bidirectional = bidirectional # consider cost(p|h) and cost(h|p)
 		self.max_cost = max_cost
+		self.lemmatize = lemmatize
 		self.coded = None
 
 		if self.sim_function == 'levenshtein':
@@ -111,6 +116,9 @@ class BagOfWords(object):
 		else:
 			raise ValueError('we dont recognize this weight function')
 
+		#if lemmatize = initialize wordnet lemmatizer
+		if lemmatize:
+			self.lemmatizer = WordNetLemmatizer()
 
 	def alignment_cost(self, w1, w2):
 		#print('Words are {} and {}'.format(w1,w2))
@@ -124,7 +132,7 @@ class BagOfWords(object):
 			else:
 				try:
 					sim = 1 / self.sim(w1, w2)
-				except ZeroDivisionError:
+				except ZeroDivisionError:  
 					sim = 1
 				cost = 1 - sim
 
@@ -132,7 +140,7 @@ class BagOfWords(object):
 		elif self.sim_function == 'distributional':
 			w1 = distributional_represent(w1, self.cooccurence_dict, self.vocab)
 
-			json_file = open(self.vocab)
+			json_file = open(self.vocab) # dont load everytime 
 			vocab = json.load(json_file)
 			token2idx = vocab['token2idx']
 			w2 = token2idx[w2[0]]
@@ -144,6 +152,9 @@ class BagOfWords(object):
 				cost = 1
 
 		else:
+			if self.lemmatize:
+				w1 = self.lematizer.lemmatize(w1)
+				w2 = self.lematizer.lemmatize(w1)
 			sim =  1 - self.sim(w1, w2)/max(len(w1),len(w2))
 			cost = -1*np.log(sim+1)
 
@@ -156,50 +167,10 @@ class BagOfWords(object):
 		cost = 0
 		for h in hypothesis:
 			min_cost = min(self.alignment_cost(h,p) if self.weight is None  
-							else self.weight[h]*self.alignment_cost(h,p)for p in premise)
+							else self.weight.get(h,self.max_cost)*self.alignment_cost(h,p)for p in premise)
 			cost += min(self.max_cost, min_cost)
 
 		return cost
-
-	def fit(self, corpus):
-		#train weight function
-		if self.sim_function in ['distributional', 'cosine', 'euclidian']:
-			self.cooccurence_dict = build_coocurences(corpus, self.vocab)
-		if self.weight_function == 'idf':
-			self.weight = idf(corpus)
-
-		#go through all of training corpus and pre-calculate features once 
-		num_features = 2 if self.bidirectional else 1
-		self.coded = np.zeros((len(corpus), num_features), dtype=np.float32)
-		self.labels = np.zeros(len(corpus), dtype=np.int32)
-		print(self.coded)
-		print(self.labels)
-		for i, (premise, hyp1, hyp2, label) in enumerate(corpus):
-			
-			features = self.features(hyp1, hyp2, premise)
-			self.coded[i,:] = features
-			self.labels[i] = label
-
-		print(self.coded)
-		print(self.labels)
-
-	def transform(self, corpus):
-		pred = np.zeros((len(corpus), 2))
-		for i in range(len(corpus)):
-			p = self.inference(self.coded[i,:]) # size num_classes
-			pred[i,:] = p
-		return pred
-
-	def train(self, corpus):
-		
-		if self.coded is None:
-			self.fit(corpus)
-		#train classifier 
-		self.classifier.train(self.coded, self.labels)
-		pred = self.transform(corpus)
-		L = log_likelihood(self.labels, pred)
-		return L, pred
-
 
 	def features(self, h1, h2, p):
 
@@ -220,6 +191,74 @@ class BagOfWords(object):
 		x = self.classifier.forward(features)
 		return x
 
+	def fit(self, corpus, num_epochs=1, verbose = True):
+		'''
+		Corpus needs to be a list of tuples (premise, hyp1, hyp2, label)
+		'''
+		#train weight function
+
+		if self.sim_function in ['distributional', 'cosine', 'euclidian']:
+			self.cooccurence_dict = build_coocurences(corpus, self.vocab)
+
+		if self.weight_function == 'idf':
+			self.idf(corpus)
+
+		#go through all of training corpus and pre-calculate features once 
+		num_features = 2 if self.bidirectional else 1
+		self.coded = np.zeros((len(corpus), num_features), dtype=np.float32)
+		self.labels = np.zeros(len(corpus), dtype=np.int32)
+
+		if verbose:
+			print('fitting..')
+
+		for i in tqdm(range(len(corpus))):
+			premise, hyp1, hyp2, label = corpus[i]
+			features = self.features(hyp1, hyp2, premise)
+			self.coded[i,:] = features
+			self.labels[i] = label
+
+		#train for num_epochs
+		for epoch in range(num_epochs):
+			self.classifier.train(self.coded, self.labels)
+
+	def fit_transform(self, corpus, num_epochs=1, ll=True, verbose=True):
+		'''
+		same as fit but output the result along with log liklihood 
+		Corpus needs to be a list of tuples (premise, hyp1, hyp2, label)
+		'''
+		self.fit(corpus)
+
+		log_like = []
+		#train for num_epochs
+		for epoch in range(num_epochs):
+			self.classifier.train(self.coded, self.labels)
+
+			pred = np.zeros((len(corpus), 2))
+
+			if verbose:
+				print('predicting..')
+			for i in tqdm(range(len(corpus))):
+				p = self.inference(self.coded[i,:]) # size num_classes
+				pred[i,:] = p
+
+			if ll:
+				L = log_likelihood(self.labels, pred)
+				log_like.append(L)
+
+		return pred, log_like
+
+	def transform(self, X, verbose=True):
+		pred = np.zeros((len(X), 2))
+
+		if verbose:
+			print('predicting...')
+		for i in tqdm(range(len(X))):
+			premise, hyp1, hyp2, label = X[i]
+			features = self.features(hyp1, hyp2, premise)
+			p = self.inference(features) # size num_classes
+			pred[i,:] = p
+		return pred
+
 
 class GDClassifier(object):
 
@@ -233,7 +272,6 @@ class GDClassifier(object):
 
 	def gradient_step(self):
 		self.weights -= self.lr * self.gradient
-		print(self.weights)
 
 	def reset_gradient(self):
 		self.gradient = np.zeros_like(self.weights)
@@ -376,7 +414,6 @@ class MaxEnt(GDClassifier):
 
 		assume that y in {0, 1}
 		'''
-		print("Initial features are: {}".format(x))
 		features = np.zeros_like(self.weights)
 		for i, f_value in enumerate(x):
 
