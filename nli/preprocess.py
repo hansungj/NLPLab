@@ -6,15 +6,15 @@ import json
 
 def tokenize(sent, 
 			delimiters = r'\s+', 
-			start_symbol=True, 
-			end_symbol=True):
+			start_symbol=None, 
+			end_symbol=None):
 
 	tokenized = re.split(delimiters, sent)
 	if start_symbol:
-		tokenized = ['START'] + tokenized
+		tokenized.insert(0, start_symbol)
     
 	if end_symbol:
-		tokenized = tokenized + ['END']
+		tokenized.append(end_symbol)
 	return tokenized
 
 def frequency_count(dataset):
@@ -24,33 +24,35 @@ def frequency_count(dataset):
 	for i in range(len(dataset)):
 		_, obs1, obs2, hyp1, hyp2, label = dataset[i]
 		textdata = [obs1, obs2, hyp1, hyp2]
-		
 		for textelem in textdata:
-			for token in tokenize(textelem, delimiters ,  start_symbol, end_symbol):
+			for token in tokenize(textelem, delimiters):
 				freq_count[token] += 1
-
 	return freq_count
 
 def token_to_idx(freq_count, 
 			delimiters = r'\s+', 
-			start_symbol = False, 
-			end_symbol = False, 
-			null_symbol = False,
-			split_symbol = False):
+			pad_symbol = None,
+			start_symbol = None, 
+			end_symbol = None, 
+			unk_symbol = None,
+			split_symbol = None):
 	
-	tok2idx = {}
 	# 0 for pad 
-	if null_symbol:
-		tok2idx['NULL'] = 1
+	tok2idx = {}
+	if pad_symbol:
+		tok2idx[pad_symbol] = len(tok2idx)
+	
+	if unk_symbol:
+		tok2idx[unk_symbol] = len(tok2idx)
 
 	if start_symbol:
-		tok2idx['START'] = 2
+		tok2idx[start_symbol] = len(tok2idx)
 
 	if end_symbol:
-		tok2idx['END'] = 3
+		tok2idx[end_symbol] = len(tok2idx)
 
 	if split_symbol:
-		tok2idx['SPLT'] = 4
+		tok2idx[split_symbol] = len(tok2idx)
 
 	for k, v in freq_count.items():
 		tok2idx[k] = len(tok2idx)
@@ -62,16 +64,17 @@ def idx_to_token(tok2idx):
 	idx2tok = {v:k for k,v in tok2idx.items()} 
 	return idx2tok
 
-def encode(tokenized_sentence, tok2idx, null_token='NULL'):
+def encode(tokenized_sentence, tok2idx, unk_token):
 	encoded = []
-	null_idx = tok2idx[null]
+	unk_idx = tok2idx[unk_token]
 	for token in tokenized_sentence:
-		encoded.append(tok2idx.get(token, null_idx))
+		encoded.append(tok2idx.get(token, unk_idx))
 	return encoded
 
-def decode(encoded, idx2tok, null_token = 'NULL'):
+def decode(encoded, idx2tok, unk_token): 
+	#unk token needs to be provided
 	decoded = []
 	for idx in encoded:
-		decoded.append(idx2tok.get(idx,null_token))
+		decoded.append(idx2tok.get(idx,unk_token))
 	return decoded
 
