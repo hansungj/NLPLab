@@ -30,6 +30,11 @@ parser.add_argument('--vocab_type', default='regular', type=str, help='build reg
 parser.add_argument('--min_occurence', default=1, type=str, help='minimum occurence of a token to include in a vocabulary')
 parser.add_arguent('--vocabulary_size', default = None, type=int)
 
+parser.add_argument('--start_symbol', default='<sos>', type=str, help='start of sentence token')
+parser.add_argument('--end_symbol', default='<eos>', type=str, help='end of sentence token')
+parser.add_argument('--split_symbol', default='</s>', type=str, help='split token')
+parser.add_argument('--null_symbol', default='<unk>', type=str, help='null token')
+parser.add_argument('--pad_symbol', default='<pad>', type=str, help='pad token')
 
 def main(args):
 
@@ -53,10 +58,11 @@ def main(args):
 
 		token2idx = token_to_idx(freq_count, 
 								delimiters = r'\s+', 
-								start_symbol = True, 
-								end_symbol = True, 
-								null_symbol = True,
-								split_symbol = True)
+								pad_symbol = args.pad_symbol
+								start_symbol = args.start_symbol, 
+								end_symbol = args.end_symbol, 
+								null_symbol = args.null_symbol,
+								split_symbol = args.split_symbol)
 
 		idx2token = idx_to_token(token2idx)
 
@@ -64,15 +70,20 @@ def main(args):
 
 	elif args.vocab_type == 'bpe':
 		'''
-		build vocabulary here
+		build vocabulary here using byte pair encoding
 
 		'''
 		NotImplementedError 
 
 	#finally save
 	vocab = {
-	'token2idx':
-	'idx2token':
+	'token2idx': token2idx
+	'idx2token': idx2token,
+	'pad_token': args.pad_symbol
+	'null_token': args.null_symbol,
+	'end_token': args.end_symbol,
+	'start_token':args.start_symbol,
+	'split_token':args.split_symbol
 	}
 
 	with open(os.path.join(args.out_path, 'vocab.json'), 'w') as f:
