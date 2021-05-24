@@ -77,9 +77,9 @@ def main(args):
 
 	#finally save
 	vocab = {
-	'token2idx': token2idx
+	'token2idx': token2idx,
 	'idx2token': idx2token,
-	'pad_token': args.pad_symbol
+	'pad_token': args.pad_symbol,
 	'null_token': args.null_symbol,
 	'end_token': args.end_symbol,
 	'start_token':args.start_symbol,
