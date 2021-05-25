@@ -11,10 +11,10 @@ def tokenize(sent,
 
 	tokenized = re.split(delimiters, sent)
 	if start_symbol:
-		tokenized = ['START'] + tokenized
+		tokenized.insert(0, start_symbol)
 
 	if end_symbol:
-		tokenized = tokenized + ['END']
+		tokenized.append(end_symbol)
 	return tokenized
 
 def frequency_count(dataset, delimiters = r'\s+',  start_symbol=True, end_symbol=True):
@@ -26,7 +26,7 @@ def frequency_count(dataset, delimiters = r'\s+',  start_symbol=True, end_symbol
 		textdata = [obs1, obs2, hyp1, hyp2]
 
 		for textelem in textdata:
-			for token in tokenize(textelem, delimiters, start_symbol, end_symbol):
+			for token in tokenize(textelem, delimiters):
 				freq_count[token] += 1
 
 	return freq_count
