@@ -24,6 +24,8 @@ from nli.embedding import build_embedding_glove
 
 from nli.models.BoW import *
 
+from scripts.build_vocab import build_vocabulary
+
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
 
@@ -53,9 +55,9 @@ parser.add_argument('--output_name', default='', type=str)
 parser.add_argument('--model_type', default='BoW', type=str)
 parser.add_argument('--batch_size', defulat=128, type=int)
 parser.add_argument('--num_epochs', default =1, type=int, help = 'Number of training epochs')
-parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples per epochs')
+parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples per epoch')
 parser.add_argument('--evaluate', default=True, type=int, help='Decide to evaluate on validation set')
-parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evluation measure') # put multiple eval measures separated by ','
+parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evaluation measure') # put multiple eval measures separated by ','
 
 #model - BOW options
 parser.add_argument('--bow_classifier', default='maxent', type=str, help='Maximum entropy classifier / Logistic Regression / Perceptron')
@@ -173,6 +175,17 @@ def main(args):
 			logger.info('Validation Dataset has %d samples' % len(val_dataset))
 			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
+			vocab = None
+			if args.bow_sim_function in ['cosine', 'euclidian', 'distributional']: #modifications of BoW that require vocab in regular form
+				if args.vocab == None: # either vocab is given or we create it from train data
+					print("A vocabulary is needed for this configuration.")
+					print("No vocabulary was given. Generating vocabulary from the data...")
+					vocab = build_vocabulary(data_path = args.train_tsv, out_dir = 'data', vocab_type = 'regular')
+				else:
+					try:
+						vocab = json.load(open(args.vocab , 'r'))
+					except TypeError:
+						print("A json vocabulary file is expected")
 
 		# for baseline 
 		model_kwargs = {
@@ -181,7 +194,8 @@ def main(args):
 			 'weight_function': args.bow_weight_function,
 			 'max_cost' : args.bow_max_cost,
 			 'bidirectional' : args.bow_bidirectional,
-			 'lemmatize':args.bow_lemmatize}	
+			 'lemmatize':args.bow_lemmatize,
+			 'vocab':vocab}	#added vocab to BoW args so that it can be used for any sim measuare available
 		model = BagOfWords(**model_kwargs)
 
 		logger.info('FITTING')

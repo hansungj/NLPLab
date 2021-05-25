@@ -39,48 +39,45 @@ class BagOfWordsWrapper(object):
 		self.weight = d
 		self.weight_avg = avg
 
-	def distributional_represent(self, x, cooccurence_dict, vocab): # make it compatible 
-		json_file = open(vocab)
-		vocab = json.load(json_file)
-	    
-		token2idx = vocab['token2idx']
+	def distributional_represent(self, x):
+		token2idx = self.vocab['token2idx']
 		x_represent = np.zeros(len(token2idx))
-	    
-		for idx in cooccurence_dict[token2idx[x[0]]]:
-			x_represent[idx-1] = cooccurence_dict[token2idx[x[0]]][idx]
-	        
+		if x in token2idx.keys(): #if there was no such word in our vocab (train data), then we know nothing about its cooccurences and represent it as zero vector
+			if token2idx[x] in self.cooccurence_dict.keys():
+				for idx in self.cooccurence_dict[token2idx[x]]:
+					x_represent[idx-1] = self.cooccurence_dict[token2idx[x]][idx]
+
 		return x_represent
 
-	def build_coocurences(self, corpus, vocab, window = 2): #make it compatible 
-		json_file = open(vocab)
-		vocab = json.load(json_file)
-		token2idx = vocab['token2idx']
+	def build_coocurences(self, corpus, window = 2):
+		token2idx = self.vocab['token2idx']
 		cooccurence_dict = defaultdict(dict)
 
 		for (p,h1,h2,_) in corpus:
 			for sent in (p,h1,h2):
 				for i in range(len(sent)):
-					
-					cur_token = token2idx[sent[i][0]]
+
+					cur_token = token2idx[sent[i]]
 					
 					left_edge = max(i-window,0)
 					right_edge = min(i+window,len(sent)-1)
 
 					for l in range(left_edge,i):
-						neighbor_token = token2idx[sent[l][0]]
+						neighbor_token = token2idx[sent[l]]
 						if neighbor_token in cooccurence_dict[cur_token]:
 							cooccurence_dict[cur_token][neighbor_token] += 1
 						else:
 							cooccurence_dict[cur_token][neighbor_token] = 1
 
 					for r in range(i+1,right_edge+1):
-						neighbor_token = token2idx[sent[r][0]]
+						neighbor_token = token2idx[sent[r]]
 						if neighbor_token in cooccurence_dict[cur_token]:
 							cooccurence_dict[cur_token][neighbor_token] += 1
 						else:
 							cooccurence_dict[cur_token][neighbor_token] = 1
-		print(len(cooccurence_dict))			
-		return cooccurence_dict #make just self.cooccurence_dict 
+		#print(len(cooccurence_dict))			
+		#cooccurence_dict['UNK']
+		return cooccurence_dict
 
 class BagOfWords(BagOfWordsWrapper):
 
@@ -92,7 +89,7 @@ class BagOfWords(BagOfWordsWrapper):
 				 max_cost = 100,
 				 bidirectional = False,
 				 lemmatize = False,
-				 ):
+				 vocab = None):
 
 		self.classifier = classifier
 		self.sim_function = sim_function
@@ -101,6 +98,7 @@ class BagOfWords(BagOfWordsWrapper):
 		self.max_cost = max_cost
 		self.lemmatize = lemmatize
 		self.coded = None
+		self.vocab = vocab
 
 		if self.sim_function == 'levenshtein':
 			self.sim = levenshtein
@@ -126,8 +124,8 @@ class BagOfWords(BagOfWordsWrapper):
 	def alignment_cost(self, w1, w2):
 		#print('Words are {} and {}'.format(w1,w2))
 		if self.sim_function in ['cosine', 'euclidian']:
-			w1 = distributional_represent(w1, self.cooccurence_dict, self.vocab)
-			w2 = distributional_represent(w2, self.cooccurence_dict, self.vocab)
+			w1 = self.distributional_represent(w1)
+			w2 = self.distributional_represent(w2)
 
 			if self.sim_function == 'cosine':
 				sim = self.sim(w1, w2)
@@ -141,14 +139,15 @@ class BagOfWords(BagOfWordsWrapper):
 
 
 		elif self.sim_function == 'distributional':
-			w1 = distributional_represent(w1, self.cooccurence_dict, self.vocab)
+			w1 = self.distributional_represent(w1)
+			token2idx = self.vocab['token2idx']
 
-			json_file = open(self.vocab) # dont load everytime 
-			vocab = json.load(json_file)
-			token2idx = vocab['token2idx']
-			w2 = token2idx[w2[0]]
+			if w2 in token2idx.keys():
+				w2 = token2idx[w2]
+				sim = self.sim(w1, w2)
+			else:
+				sim = 0 # if the token was not seen in the training data, then it never cooccured with anything in the training data
 
-			sim = self.sim(w1, w2)
 			try:
 				cost = 1 / sim
 			except ZeroDivisionError:
@@ -199,7 +198,7 @@ class BagOfWords(BagOfWordsWrapper):
 		#train weight function
 
 		if self.sim_function in ['distributional', 'cosine', 'euclidian']:
-			self.cooccurence_dict = build_coocurences(corpus, self.vocab)
+			self.cooccurence_dict = self.build_coocurences(corpus)
 
 		if self.weight_function == 'idf':
 			self.idf(corpus)
@@ -300,9 +299,9 @@ class Perceptron(GDClassifier):
 			x = np.append(x, 1)
 		y_hat = self.forward(x)
 
-		print("predict: {}".format(y_hat))
-		print("label: {}".format(y))
-		print("data: {}".format(x))
+		#print("predict: {}".format(y_hat))
+		#print("label: {}".format(y))
+		#print("data: {}".format(x))
 		
 		self.gradient += -y_hat*x
 
