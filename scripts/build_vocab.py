@@ -75,8 +75,13 @@ def build_vocabulary(data_path ='data/alphanli/tsv/train.tsv',
 
 	#finally save
 	vocab = {
-	'token2idx':token2idx,
-	'idx2token':idx2token
+	'token2idx': token2idx,
+	'idx2token': idx2token,
+	'pad_token': args.pad_symbol,
+	'null_token': args.null_symbol,
+	'end_token': args.end_symbol,
+	'start_token':args.start_symbol,
+	'split_token':args.split_symbol
 	}
 
 	with open(os.path.join(out_dir, 'vocab.json'), 'w') as f:
