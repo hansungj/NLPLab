@@ -17,7 +17,7 @@ def tokenize(sent,
 		tokenized.append(end_symbol)
 	return tokenized
 
-def frequency_count(dataset):
+def frequency_count(dataset, delimiters = r'\s+',  start_symbol=True, end_symbol=True):
 
 	freq_count = defaultdict(int)
 
@@ -55,7 +55,8 @@ def token_to_idx(freq_count,
 		tok2idx[split_symbol] = len(tok2idx)
 
 	for k, v in freq_count.items():
-		tok2idx[k] = len(tok2idx)
+		if not k in tok2idx.keys(): #if we don't check this, we end up with 'END' and 'SPLT' tokens having quite random indeces
+			tok2idx[k] = len(tok2idx)
 
 	return tok2idx
 
@@ -78,3 +79,17 @@ def decode(encoded, idx2tok, unk_token):
 		decoded.append(idx2tok.get(idx,unk_token))
 	return decoded
 
+if __name__ == '__main__':
+
+	p1 = 'Chad went to get the wheel alignment measured on his car'	
+	p2 = 'The mechanic provided a working alignment with new body work'	
+	h1 = 'Chad was waiting for his car to be washed'	
+	h2 = 'Chad was waiting for his car to be finished'
+
+	label = 1
+
+	dataset = [('id', p1, p2, h1, h2, label)]
+	freq_count = frequency_count(dataset, delimiters = r'\s+', start_symbol = True, end_symbol = True)
+	print(freq_count)
+	tok2idx = token_to_idx(freq_count, start_symbol = True, end_symbol = True)
+	print(tok2idx)
