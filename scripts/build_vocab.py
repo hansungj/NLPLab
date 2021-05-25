@@ -36,14 +36,10 @@ parser.add_argument('--split_symbol', default='</s>', type=str, help='split toke
 parser.add_argument('--null_symbol', default='<unk>', type=str, help='null token')
 parser.add_argument('--pad_symbol', default='<pad>', type=str, help='pad token')
 
-def build_vocabulary(data_path ='data/alphanli/tsv/train.tsv',
-		out_dir = 'data',
-		vocab_type = 'regular',
-		min_occurence = 1,
-		vocabulary_size = None): #so that the function can be called not from command line only
+def main(args): #so that the function can be called not from command line only
 
-	if vocab_type == 'regular': # this option is enough for BoW model
-		data = open_tsv_file(data_path)
+	if args.vocab_type == 'regular': # this option is enough for BoW model
+		data = open_tsv_file(args.data_path)
 		freq_count = frequency_count(data)
 
 		#filter by vocabulary size
@@ -51,18 +47,18 @@ def build_vocabulary(data_path ='data/alphanli/tsv/train.tsv',
 	
 
 		#min occurence 
-		if min_occurence is not None:
+		if args.min_occurence is not None:
 			for token, count in freq_count.items():
-				if count < min_occurence:
+				if count < args.min_occurence:
 					del freq_count[key]
 
-		if vocabulary_size is not None:
-			freq_count = sorted(((k,v) in k,v in freq_count.items()), reverse=True, key = lambda x: x[1])[:avocabulary_size]
+		if args.vocabulary_size is not None:
+			freq_count = sorted(((k,v) in k,v in freq_count.items()), reverse=True, key = lambda x: x[1])[:args.vocabulary_size]
 			freq_count = {k:v for k,v in freq_count}
 
 		token2idx = token_to_idx(freq_count, 
 								delimiters = r'\s+', 
-								pad_symbol = args.pad_symbol
+								pad_symbol = args.pad_symbol,
 								start_symbol = args.start_symbol, 
 								end_symbol = args.end_symbol, 
 								null_symbol = args.null_symbol,
@@ -72,7 +68,7 @@ def build_vocabulary(data_path ='data/alphanli/tsv/train.tsv',
 
 		logger.info('filtered vocabulary length: {}'.format(len(token2idx)))
 
-	elif vocab_type == 'bpe':
+	elif args.vocab_type == 'bpe':
 		'''
 		build vocabulary here using byte pair encoding
 
@@ -90,7 +86,7 @@ def build_vocabulary(data_path ='data/alphanli/tsv/train.tsv',
 	'split_token':args.split_symbol
 	}
 
-	with open(os.path.join(out_dir, 'vocab.json'), 'w') as f:
+	with open(os.path.join(args.out_dir, 'vocab.json'), 'w') as f:
 		json.dump(vocab, f, indent=4)
 
 	return vocab
@@ -103,4 +99,4 @@ if __name__ == '__main__':
 		level=logging.INFO,
 		format='%(name)s: %(asctime)s: %(message)s'
 		)
-	build_vocabulary(args.data_path, args.out_dir, args.vocab_type, args.min_occurence, args.vocabulary_size)
+	main(args)

@@ -13,7 +13,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from nli.utils import open_tsv_file
-from nli.preporcess import tokenize
+from nli.preprocess import tokenize
 
 class AlphaDatasetBaseline(Dataset):
 	def __init__(self,
@@ -59,7 +59,7 @@ class AlphaDataset(Dataset):
 		items['hyp2'], items['hyp2_mask'], items['hyp2_reference'] = self.preprocess_hypothesis(self.data['hyp2'][idx])
 
 		observation = [self.data['obs1'][idx], self.data['obs2'][idx]]
-		items['obs'], items['obs_mask'],, items['obs_reference'] = self.preprocess_hypothesis(observation)
+		items['obs'], items['obs_mask'], items['obs_reference'] = self.preprocess_hypothesis(observation)
 		items['label'] = torch.tensor(self.dataset['label'][idx])
 		items['pad_id'] = self.tokenizer.vocab['token2idx'][self.tokenizer.pad_token]
 		return items

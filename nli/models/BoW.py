@@ -39,6 +39,24 @@ class BagOfWordsWrapper(object):
 		self.weight = d
 		self.weight_avg = avg
 
+	def build_vocabulary(self, corpus):
+		token2idx = defaultdict(int)
+		
+		for (p,h1,h2,_) in corpus:
+			for sent in (p,h1,h2):
+				for token in sent:
+					if token not in token2idx.keys():
+						token2idx[token] = len(tok2idx)
+		
+		idx2tok = {v:k for k,v in tok2idx.items()}
+		
+		vocab = {
+		'token2idx': token2idx,
+		'idx2token': idx2token
+		}
+		return vocab
+	
+	
 	def distributional_represent(self, x):
 		token2idx = self.vocab['token2idx']
 		x_represent = np.zeros(len(token2idx))
@@ -129,13 +147,13 @@ class BagOfWords(BagOfWordsWrapper):
 
 			if self.sim_function == 'cosine':
 				sim = self.sim(w1, w2)
-				cost = 1 - sim
+				cost = -1*np.log(sim+1)
 			else:
 				try:
 					sim = 1 / self.sim(w1, w2)
 				except ZeroDivisionError:  
 					sim = 1
-				cost = 1 - sim
+				cost = -1*np.log(sim+1)
 
 
 		elif self.sim_function == 'distributional':
@@ -149,7 +167,7 @@ class BagOfWords(BagOfWordsWrapper):
 				sim = 0 # if the token was not seen in the training data, then it never cooccured with anything in the training data
 
 			try:
-				cost = 1 / sim
+				cost = -1*np.log(sim+1)
 			except ZeroDivisionError:
 				cost = 1
 
@@ -198,6 +216,7 @@ class BagOfWords(BagOfWordsWrapper):
 		#train weight function
 
 		if self.sim_function in ['distributional', 'cosine', 'euclidian']:
+			self.vocab = self.build_vocabulary(corpus)
 			self.cooccurence_dict = self.build_coocurences(corpus)
 
 		if self.weight_function == 'idf':
