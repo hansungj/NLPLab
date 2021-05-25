@@ -12,7 +12,7 @@ def tokenize(sent,
 	tokenized = re.split(delimiters, sent)
 	if start_symbol:
 		tokenized.insert(0, start_symbol)
-	
+		
 	if end_symbol:
 		tokenized.append(end_symbol)
 	return tokenized
