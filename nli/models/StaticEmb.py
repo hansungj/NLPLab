@@ -7,7 +7,6 @@ class StaticEmbeddingMixture(nn.Module):
 
 	def __init__(self,
 				 embedding,
-				 hidden_size,
 				 hidden_encoder_size,
 				 hidde_decoder_size,
 				 dropout,
@@ -16,21 +15,25 @@ class StaticEmbeddingMixture(nn.Module):
 		super().__init__()
 
 		self.embedding = embedding
+		hidden_size = embedding.size(1)
 		self.encoder_premise = nn.Sequential(
 									nn.Linear(hidden_size,hidden_encoder_size),
 									nn.ReLU(),
+									nn.LayerNorm(),
 									nn.Dropout(dropout),
 									nn.Linear(hidden_encoder_size,hidden_encoder_size))
 		self.encoder_hyp = nn.Sequential(
 									nn.Linear(hidden_size,hidden_encoder_size),
 									nn.ReLU(),
 									nn.Dropout(dropout),
+									nn.LayerNorm(),
 									nn.Linear(hidden_encoder_size,hidden_encoder_size))
 
 		self.decoder = nn.Sequential(
 									nn.Linear(hidden_encoder_size*5,hidde_decoder_size),
 									nn.ReLU(),
 									nn.Dropout(dropout),
+									nn.LayerNorm(),
 									nn.Linear(hidde_decoder_size,1))
 		self.loss_fn = nn.BCEWithLogitsLoss()
 
@@ -74,7 +77,6 @@ class StaticEmbeddingRNN(nn.Module):
 
 	def __init__(self,
 				 embedding,
-				 hidden_size,
 				 num_rnn_layers,
 				 hidden_encoder_size,
 				 hidde_decoder_size,
@@ -93,6 +95,7 @@ class StaticEmbeddingRNN(nn.Module):
 							nn.Linear(hidden_encoder_size*5,hidde_decoder_size),
 							nn.ReLU(),
 							nn.Dropout(dropout),
+							nn.LayerNorm(),
 							nn.Linear(hidde_decoder_size,1))
 		self.loss_fn = nn.BCEWithLogitsLoss()
 
