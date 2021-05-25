@@ -1,6 +1,6 @@
 #tokenization - will hold different tokenization objects here
 
-from preprocess import tokenize
+from nli.preprocess import tokenize
 
 class WhiteSpaceTokenizer(object):
 	'''
