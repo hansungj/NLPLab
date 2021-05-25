@@ -12,21 +12,21 @@ def tokenize(sent,
 	tokenized = re.split(delimiters, sent)
 	if start_symbol:
 		tokenized = ['START'] + tokenized
-    
+
 	if end_symbol:
 		tokenized = tokenized + ['END']
 	return tokenized
 
-def frequency_count(dataset):
+def frequency_count(dataset, delimiters = r'\s+',  start_symbol=True, end_symbol=True):
 
 	freq_count = defaultdict(int)
 
 	for i in range(len(dataset)):
 		_, obs1, obs2, hyp1, hyp2, label = dataset[i]
 		textdata = [obs1, obs2, hyp1, hyp2]
-		
+
 		for textelem in textdata:
-			for token in tokenize(textelem, delimiters ,  start_symbol, end_symbol):
+			for token in tokenize(textelem, delimiters, start_symbol, end_symbol):
 				freq_count[token] += 1
 
 	return freq_count
@@ -53,7 +53,8 @@ def token_to_idx(freq_count,
 		tok2idx['SPLT'] = 4
 
 	for k, v in freq_count.items():
-		tok2idx[k] = len(tok2idx)
+		if not k in tok2idx.keys(): #if we don't check this, we end up with 'END' and 'SPLT' tokens having quite random indeces
+			tok2idx[k] = len(tok2idx)
 
 	return tok2idx
 
@@ -75,3 +76,17 @@ def decode(encoded, idx2tok, null_token = 'NULL'):
 		decoded.append(idx2tok.get(idx,null_token))
 	return decoded
 
+if __name__ == '__main__':
+
+	p1 = 'Chad went to get the wheel alignment measured on his car'	
+	p2 = 'The mechanic provided a working alignment with new body work'	
+	h1 = 'Chad was waiting for his car to be washed'	
+	h2 = 'Chad was waiting for his car to be finished'
+
+	label = 1
+
+	dataset = [('id', p1, p2, h1, h2, label)]
+	freq_count = frequency_count(dataset, delimiters = r'\s+', start_symbol = True, end_symbol = True)
+	print(freq_count)
+	tok2idx = token_to_idx(freq_count, start_symbol = True, end_symbol = True)
+	print(tok2idx)
