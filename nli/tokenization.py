@@ -23,7 +23,7 @@ class WhiteSpaceTokenizer(object):
 
 	def convert_tokens_to_idx(self, tokens):
 		unk_token_id = vocab['token2idx'][self.unk_token]
-		encoded = [self.vocab.get(token, )for token in tokens]
+		encoded = [self.vocab.get(token, unk_token_id)for token in tokens]
 		return encoded
 
 class SubwordTokenizer(object):
@@ -47,3 +47,6 @@ class SubwordTokenizer(object):
 		# here greddily find the best split for each token 
 		for token in tokens:
 			pass
+
+	def covert_tokens_to_ids(self, tokens):
+		pass
