@@ -48,12 +48,12 @@ class StaticEmbeddingMixture(nn.Module):
 
 	def forward(self, p, h1, h2, y=None ):
 
-		p = self.embedding(p)
+		p = self.embedding(p) # B X L X H
 		h1 = self.embedding(h1)
 		h2 = self.embedding(h2)
 
 		#pool
-		p = self.pooling(p, dim=1) #B x L X H
+		p = self.pooling(p, dim=1) #B x 1 X H
 		h1 = self.pooling(h1, dim=1)
 		h2 = self.pooling(h2, dim=1)
 
