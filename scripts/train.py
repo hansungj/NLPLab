@@ -13,6 +13,7 @@ import time
 import json
 from tqdm import tqdm
 
+#pip install transformers
 
 import nli.utils as utils 
 from nli.data import AlphaDatasetBaseline, AlphaDataset, load_dataloader
@@ -20,9 +21,7 @@ import nli.preprocess as preprocess
 import nli.metrics as metrics
 from nli.tokenization import WhiteSpaceTokenizer
 from nli.embedding import build_embedding_glove
-
-
-from nli.models.BoW import *
+from nli.models import *
 
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
@@ -121,7 +120,7 @@ def main(args):
 	logger.info('TRAIN DATA PATH:')
 	logger.info(args.train_tsv)
 	logger.info('DEV DATA PATH:')
-	logger.info(args.dev_tsv)
+	logger.info(args.val_tsv)
 
 	if  args.model_type == 'BoW':
 		logger.info('BASELINE CLASSIFIER: {}'.format(args.bow_classifier))
@@ -284,14 +283,16 @@ def main(args):
 		device = torch.device('cpu')
 
 	#group parmaeters if we are weight decaying
+	parameters = model.parameters()
 	if args.weight_decay:
-		parameters = prepare_model_parameters_weight_decay(mode.named_parameters())
-	else:
-		parameters = model.parameters()
+		parameters = prepare_model_parameters_weight_decay(parameters)
 
 	#optimizer 
 	if args.optimzer == 'adam':
 		torch.optim.Adam(parameters, args.learning_rate, (args.optimizer_beta_1,optimizer_beta_2), args.optimizer_eps)
+
+	elif args.optimizer == 'adamW':
+		AdamW(parameters, args.learning_rate, (args.optimizer_beta_1,optimizer_beta_2), args.optimizer_eps)
 
 	#scheduler 
 	if args.scheduler:
@@ -307,14 +308,15 @@ def main(args):
 		labels = []
 		pred = []
 		train_loss = 0
+
 		for step, batch in enumerate(train_loader):
 			hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']
 			
 			if args.use_cuda:
 				hyp1 = hyp1.to(device)
-				hyp2 = hyp1.to(device)
-				premise = hyp1.to(device)
-				label = hyp1.to(device)
+				hyp2 = hyp2.to(device)
+				premise = premise.to(device)
+				label = label.to(device)
 
 			model.train()
 			loss, logtis = model(premise, hyp1, hyp2, label)
@@ -325,6 +327,9 @@ def main(args):
 			if args.grad_norm_clip:
 				torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_norm_clip)
 
+			'''
+			gradient accumulation 
+			'''
 			optimizer.step()
 			if args.scheduler:
 				scheduler.step()
@@ -341,11 +346,14 @@ def main(args):
 		stats.eval(labels,pred)
 
 		if evaluate:
+			model.eval()
+			with torch.no_grad():
+				pass
 			'''
 			here implement 
 			1.evaluation  
 			2. early stopping
-			3. saving best model at a check point pth
+			3. saving best model at a check point pth - torch.save()
 			'''
 			NotImplementedError 
 	#save 
@@ -363,12 +371,13 @@ def main(args):
 
 def prepare_model_parameters_weight_decay(named_parameters):
 	no_decay = ['bias', 'LayerNorm.weight']
-	groued_params = [
+	grouped_params = [
 	{'params': [p for n, p in named_parameters if not any(nd in n for nd in no_decay)],
 	'weight_decay': args.weight_decay},
 	{'params': [p for n, p in named_parameters if any(nd in n for nd in no_decay)],
 	'weight_decay': 0.0}
 	]
+	return grouped_params
 
 def train(model, dataloader):
 	return None
