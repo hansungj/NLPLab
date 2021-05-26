@@ -46,13 +46,13 @@ class BagOfWordsWrapper(object):
 			for sent in (p,h1,h2):
 				for token in sent:
 					if token not in token2idx.keys():
-						token2idx[token] = len(tok2idx)
+						token2idx[token] = len(token2idx)
 		
-		idx2tok = {v:k for k,v in tok2idx.items()}
+		idx2tok = {v:k for k,v in token2idx.items()}
 		
 		vocab = {
 		'token2idx': token2idx,
-		'idx2token': idx2token
+		'idx2token': idx2tok
 		}
 		return vocab
 	
@@ -124,7 +124,7 @@ class BagOfWords(BagOfWordsWrapper):
 			self.sim = distributional
 		elif self.sim_function == 'cosine':
 			self.sim = cosine
-		elif self.sim_function == 'euclidian':
+		elif self.sim_function == 'euclidean':
 			self.sim = euclidian
 		else:
 			raise ValueError('we dont recognize this similarity function')
@@ -141,7 +141,7 @@ class BagOfWords(BagOfWordsWrapper):
 
 	def alignment_cost(self, w1, w2):
 		#print('Words are {} and {}'.format(w1,w2))
-		if self.sim_function in ['cosine', 'euclidian']:
+		if self.sim_function in ['cosine', 'euclidean']:
 			w1 = self.distributional_represent(w1)
 			w2 = self.distributional_represent(w2)
 
@@ -215,7 +215,7 @@ class BagOfWords(BagOfWordsWrapper):
 		'''
 		#train weight function
 
-		if self.sim_function in ['distributional', 'cosine', 'euclidian']:
+		if self.sim_function in ['distributional', 'cosine', 'euclidean']:
 			self.vocab = self.build_vocabulary(corpus)
 			self.cooccurence_dict = self.build_coocurences(corpus)
 
