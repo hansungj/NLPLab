@@ -18,9 +18,7 @@ def tokenize(sent,
 	return tokenized
 
 def frequency_count(dataset, delimiters = r'\s+',  start_symbol=True, end_symbol=True):
-
 	freq_count = defaultdict(int)
-
 	for i in range(len(dataset)):
 		_, obs1, obs2, hyp1, hyp2, label = dataset[i]
 		textdata = [obs1, obs2, hyp1, hyp2]
