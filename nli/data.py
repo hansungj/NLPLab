@@ -37,7 +37,6 @@ class AlphaDatasetBaseline(Dataset):
 		label = self.dataset['label'][idx]
 		return obs, hyp1, hyp2, label
 
-
 class AlphaDataset(Dataset):
 	def __init__(self,
 				data_path,
@@ -53,7 +52,6 @@ class AlphaDataset(Dataset):
 		return self.max_samples
 
 	def __getitem__(self, idx):
-
 		items = {}
 		items['hyp1'], items['hyp1_mask'], items['hyp1_reference'] = self.preprocess_hypothesis(self.data['hyp1'][idx])
 		items['hyp2'], items['hyp2_mask'], items['hyp2_reference'] = self.preprocess_hypothesis(self.data['hyp2'][idx])
@@ -70,18 +68,18 @@ class AlphaDataset(Dataset):
 		hyp_tokens.append(self.tokenizer.end_token)
 		hyp_ids = self.tokenizer.convert_tokens_to_id(hyp_tokens)
 		masks = [1]*len(hyp_ids)
-		return torch.LongTensor(hyp_ids), masks, hyp
+		return torch.LongTensor(hyp_ids), torch.LongTensor(masks), hyp
 
 	def preprocess_premise(self, obs):
-		obs = (' ' + self.tokenizer.split_token + ' ').join(bos)
+		obs = (' ' + self.tokenizer.split_token + ' ').join(obs) # sentence </s> sentence 
 		tokens = self.tokenizer.tokenize(obs)
 		tokens.insert(0, self.tokenizer.start_token)
 		tokens.append(self.tokenizer.end_token)
 		tokens_id = self.tokenizer.convert_tokens_to_id(tokens)
 		masks = [1]*len(tokens_id)
-		return torch.LongTensor(tokens_id), masks, obs
+		return torch.LongTensor(tokens_id), torch.LongTensor(masks), obs
 
-def alpha_collate_fn(item):
+def alpha_collate_fn(batch):
 
 	def merge(sequences, pad_id):
 		lengths = [len(l) for l in sequences]
@@ -93,6 +91,10 @@ def alpha_collate_fn(item):
 			padded_batch[i, :len(seq)] = seq
 
 		return padded_batch, torch.LongTensor(length)
+
+	item={}
+	for key in batch[0].key():
+		item[key] = [d[key] for d in batch] # [item_dic, item_idc ]
 
 	pad_id = item['pad_id'][0]
 	hyp1, hyp1_length = merge(item['hyp1'], pad_id)
@@ -129,5 +131,4 @@ def load_dataloader(dataset, batch_size, shuffle=True, drop_last = True, num_wor
 		shuffle=shuffle, 
 		drop_last=drop_last,
 		num_workers=num_workers )
-
 	return dataloader
