@@ -71,7 +71,6 @@ def main(args): #so that the function can be called not from command line only
 	elif args.vocab_type == 'bpe':
 		'''
 		build vocabulary here using byte pair encoding
-
 		'''
 		NotImplementedError 
 
