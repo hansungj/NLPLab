@@ -119,3 +119,14 @@ class StaticEmbeddingRNN(nn.Module):
 
 		loss = self.loss_fn(logit, y.view(-1))
 		return logit, loss
+
+class StaticEmbeddingCNN(nn.Module):
+	'''
+	
+	use different sized conv kernels - do some kind of pooling to make them into a single vector 
+
+	'''
+
+	def __init__(self, x):
+		pass
+	
