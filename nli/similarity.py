@@ -22,7 +22,10 @@ def distributional(x,y):
 	check coocurrence value
 	'''
 	dist = 0
-	dist = x[y] / np.sum(x)
+	try:
+		dist = x.get(y, 0) / sum(x.values())
+	except ZeroDivisionError:
+		dist = 0
 	return dist
 
 
@@ -31,7 +34,15 @@ def cosine(x,y):
 	cosine tokens' distance
 	'''
 	dist = 0
-	dist = np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+	axes = set(x.keys()) 
+	axes = axes.union(set(y.keys()))
+	for axis in axes:
+		x_ = x.get(axis, 0)
+		y_ = y.get(axis, 0)
+		dist += x_ * y_
+	x_norm = math.sqrt(sum([t*t for t in x.values()]))
+	y_norm = math.sqrt(sum([t*t for t in y.values()]))
+	dist = dist / (x_norm * y_norm)
 	return dist
 
 
@@ -40,8 +51,12 @@ def euclidian(x,y):
 	euclidian tokens' distance
 	'''
 	dist = 0
-	for i in range(len(x)):
-		dist += (x[i] - y[i])**2
+	axes = set(x.keys()) 
+	axes = axes.union(set(y.keys()))
+	for axis in axes:
+		x_ = x.get(axis, 0)
+		y_ = y.get(axis, 0)
+		dist += (x_ - y_)**2
 	dist = math.sqrt(dist)
 	return dist
 
