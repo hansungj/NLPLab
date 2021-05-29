@@ -142,8 +142,9 @@ class BagOfWords(BagOfWordsWrapper):
 	def alignment_cost(self, w1, w2):
 		#print('Words are {} and {}'.format(w1,w2))
 		if self.sim_function in ['cosine', 'euclidean']:
-			w1 = self.distributional_represent(w1)
-			w2 = self.distributional_represent(w2)
+			token2idx = self.vocab['token2idx']
+			w1 = self.cooccurence_dict[token2idx[w1]]
+			w2 = self.cooccurence_dict[token2idx[w2]]
 
 			if self.sim_function == 'cosine':
 				sim = self.sim(w1, w2)
@@ -157,8 +158,8 @@ class BagOfWords(BagOfWordsWrapper):
 
 
 		elif self.sim_function == 'distributional':
-			w1 = self.distributional_represent(w1)
 			token2idx = self.vocab['token2idx']
+			w1 = self.cooccurence_dict[token2idx[w1]]
 
 			if w2 in token2idx.keys():
 				w2 = token2idx[w2]
