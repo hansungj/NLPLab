@@ -58,8 +58,7 @@ def main(args): #so that the function can be called not from command line only
 			freq_count = sorted(((k,v) in k,v in freq_count.items()), reverse=True, key = lambda x: x[1])[:args.vocabulary_size]
 			freq_count = {k:v for k,v in freq_count}
 
-		token2idx = token_to_idx(freq_count, 
-								delimiters = r'\s+', 
+		token2idx = token_to_idx(freq_count,
 								pad_symbol = args.pad_symbol,
 								start_symbol = args.start_symbol, 
 								end_symbol = args.end_symbol, 
