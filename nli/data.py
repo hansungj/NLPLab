@@ -68,7 +68,7 @@ class AlphaDataset(Dataset):
 		hyp_tokens.append(self.tokenizer.end_token)
 		hyp_ids = self.tokenizer.convert_tokens_to_id(hyp_tokens)
 		masks = [1]*len(hyp_ids)
-		return torch.LongTensor(hyp_ids), torch.LongTensor(masks), hyp
+		return torch.tensor(hyp_ids), torch.tensor(masks), hyp
 
 	def preprocess_premise(self, obs):
 		obs = (' ' + self.tokenizer.split_token + ' ').join(obs) # sentence </s> sentence 
@@ -77,7 +77,7 @@ class AlphaDataset(Dataset):
 		tokens.append(self.tokenizer.end_token)
 		tokens_id = self.tokenizer.convert_tokens_to_id(tokens)
 		masks = [1]*len(tokens_id)
-		return torch.LongTensor(tokens_id), torch.LongTensor(masks), obs
+		return torch.tensor(tokens_id), torch.tensor(masks), obs
 
 def alpha_collate_fn(batch):
 
