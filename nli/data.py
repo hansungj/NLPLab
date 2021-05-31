@@ -42,13 +42,13 @@ class AlphaDataset(Dataset):
 				data_path,
 				tokenizer, 
 				max_samples=None):
-		self.dataset = open_tsv_file(data_path, dic=True)
+		self.data = open_tsv_file(data_path, dic=True)
 		self.tokenizer = tokenizer
 		self.max_samples = max_samples 
 
 	def __len__(self):
 		if self.max_samples is None:
-			return len(self.dataset['obs1'])
+			return len(self.data['obs1'])
 		return self.max_samples
 
 	def __getitem__(self, idx):
@@ -57,8 +57,8 @@ class AlphaDataset(Dataset):
 		items['hyp2'], items['hyp2_mask'], items['hyp2_reference'] = self.preprocess_hypothesis(self.data['hyp2'][idx])
 
 		observation = [self.data['obs1'][idx], self.data['obs2'][idx]]
-		items['obs'], items['obs_mask'], items['obs_reference'] = self.preprocess_hypothesis(observation)
-		items['label'] = torch.tensor(self.dataset['label'][idx])
+		items['obs'], items['obs_mask'], items['obs_reference'] = self.preprocess_premise(observation)
+		items['label'] = torch.tensor(self.data['label'][idx])
 		items['pad_id'] = self.tokenizer.vocab['token2idx'][self.tokenizer.pad_token]
 		return items
 
@@ -90,10 +90,10 @@ def alpha_collate_fn(batch):
 		for i, seq in enumerate(sequences):
 			padded_batch[i, :len(seq)] = seq
 
-		return padded_batch, torch.LongTensor(length)
+		return padded_batch, torch.LongTensor(lengths)
 
 	item={}
-	for key in batch[0].key():
+	for key in batch[0].keys():
 		item[key] = [d[key] for d in batch] # [item_dic, item_idc ]
 
 	pad_id = item['pad_id'][0]
@@ -103,7 +103,7 @@ def alpha_collate_fn(batch):
 	hyp2_mask, _ = merge(item['hyp2_mask'], pad_id)
 	obs, obs_length = merge(item['obs'], pad_id)
 	obs_mask, _ = merge(item['obs_mask'], pad_id)
-	label = torch.stack(item['label'])
+	label = torch.stack(item['label']).float()
 
 	d = {}
 	d['hyp1'] = hyp1
