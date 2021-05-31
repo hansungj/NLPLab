@@ -6,19 +6,12 @@ import sys
 
 
 def tokenize(sent,
-			delimiters = r'\s+', 
-			start_symbol=None, 
-			end_symbol=None):
+			delimiters = r'\s+'):
 	
 	tokenized = re.split(delimiters, sent)
-	if start_symbol:
-		tokenized.insert(0, start_symbol)
-    
-	if end_symbol:
-		tokenized.append(end_symbol)
 	return tokenized
 
-def frequency_count(dataset, lower, delimiters = r'\s+',  start_symbol=True, end_symbol=True):
+def frequency_count(dataset, lower, delimiters = r'\s+'):
 	freq_count = defaultdict(int)
 	for i in range(len(dataset)):
 		_, obs1, obs2, hyp1, hyp2, label = dataset[i]
@@ -31,7 +24,6 @@ def frequency_count(dataset, lower, delimiters = r'\s+',  start_symbol=True, end
 	return freq_count
 
 def token_to_idx(freq_count, 
-			delimiters = r'\s+', 
 			pad_symbol = None,
 			start_symbol = None, 
 			end_symbol = None, 
