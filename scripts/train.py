@@ -96,7 +96,7 @@ parser.add_argument('--optimizer', default='adam', help='adam/adamW/sgd/..')
 parser.add_argument('--beta_1', default=0.99, type=float, help='beta1 for first moment')
 parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for second moment')
 parser.add_argument('--weight_decay', default=False, type=bool)
-parser.add_argument('--eps', default=1e-6, type=float)
+parser.add_argument('--eps', default=1e-8, type=float)
 parser.add_argument('--learning_rate', default=1e-4, type=float)
 parser.add_argument('--scheduler', default=None, help='')
 parser.add_argument('--num_warming_steps', default=None, help='number of warming steps for the scheduler')
@@ -283,7 +283,6 @@ def main(args):
 		padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
 		embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx)
 		model = StaticEmbeddingRNN (embedding_matrix,
-				 args.num_rnn_layers,
 				 args.se_hidden_encoder_size,
 				 args.se_hidden_decoder_size,
 				 args.se_num_encoder_layers,
@@ -326,9 +325,9 @@ def main(args):
 		pred = []
 		train_loss = 0
 		model.train()
+		model.zero_gard()
 		for step, batch in enumerate(train_loader):
-			hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']
-			
+			hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
 			if args.use_cuda:
 				hyp1 = hyp1.to(device)
 				hyp2 = hyp2.to(device)
@@ -352,13 +351,13 @@ def main(args):
 			#keep things 
 			train_loss += loss.mean().item()
 			labels.extend(label.tolist())
-			print(F.sigmoid(logits.view(-1)))
-			pred.extend((F.sigmoid(logits.view(-1))>0.5).long().tolist())
+			pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
 
 		#update keepr for log liklihood
 		stats.update('loglikelihood',train_loss)
 		stats.eval(labels,pred)
 		#print for status update
+		logging.info('Train stats:')
 		stats.print()
 
 		if evaluate:
@@ -366,13 +365,36 @@ def main(args):
 			with torch.no_grad():
 				labels = []
 				pred = []
-
+				total_loss = 0
 				for step, batch in enumerate(val_loader):
 					hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']
+
+
+
+					if args.use_cuda:
+						hyp1 = hyp1.to(device)
+						hyp2 = hyp2.to(device)
+						premise = premise.to(device)
+						label = label.to(device)
+
+					#update keepr for log liklihood
+					logits, loss = model(premise, hyp1, hyp2, label)
+					total_loss += loss.mean().item()
+
+					labels.extend(label.tolist())
+					pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+
+				val_stats.update('loglikelihood',train_loss)
+				val_stats.eval(labels,pred)
+
+				logging.info('Val stats:')
+				val_stats.print()
+
+					
+
 					'''
 					here implement 
-					1.evaluation  
-					2. early stopping
+					2. early stopping - based on evaluation measure accuracy
 					3. saving best model at a check point pth - torch.save()
 					'''
 					NotImplementedError 
