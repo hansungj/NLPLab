@@ -69,7 +69,7 @@ class StaticEmbeddingMixture(nn.Module):
 		p = self.embedding(p) # B X L X H
 		h1 = self.embedding(h1)
 		h2 = self.embedding(h2)
-		
+
 		#pool
 		p = self.pooling(p, dim=1) #B x 1 X H
 		h1 = self.pooling(h1, dim=1)
@@ -110,8 +110,14 @@ class StaticEmbeddingRNN(nn.Module):
 
 		self.embedding = embedding
 		hidden_size = embedding.weight.size(1)
-		self.encoder_premise = nn.GRU(hidden_size, hidden_encoder_size, num_encoder_layers, batch_first = True, dropout=dropout)
-		self.encoder_hyp = nn.GRU(hidden_size, hidden_encoder_size, num_encoder_layers, batch_first = True, dropout=dropout)
+		self.hidden_encoder_size = hidden_encoder_size
+		self.hidden_decoder_size = hidden_decoder_size
+		self.num_encoder_layers = num_encoder_layers
+		self.num_decoder_layers = num_decoder_layers
+		self.bidirectional = bidirectional
+
+		self.encoder_premise = nn.GRU(hidden_size, hidden_encoder_size, num_encoder_layers, batch_first = True, dropout=dropout, bidirectional=bidirectional)
+		self.encoder_hyp = nn.GRU(hidden_size, hidden_encoder_size, num_encoder_layers, batch_first = True, dropout=dropout, bidirectional=bidirectional)
 
 		if bidirectional:
 			hidden_encoder_size *= 2
@@ -134,16 +140,35 @@ class StaticEmbeddingRNN(nn.Module):
 		h1, _ = self.encoder_hyp(h1)
 		h2, _ = self.encoder_hyp(h2)
 
+		if self.bidirectional:
+			B, L, _ = p.size()
+			p = p.view(B, L, self.hidden_encoder_size, -1)
+
+			_, L, __ = h1.size()
+			h1 = h1.view(B, L, self.hidden_encoder_size, -1)
+
+			_, L, __ = h2.size()
+			h2 = h2.view(B, L, self.hidden_encoder_size, -1)
+
+			p = torch.cat([p[:,-1,:,0],p[:,0,:,1]], dim=-1)
+			h1 = torch.cat([h1[:,-1,:,0],h1[:,0,:,1]],dim=-1)
+			h2 = torch.cat([h2[:,-1,:,0],h2[:,0,:,1]],dim=-1)
+		else:
+			p = p[:,-1,:]
+			h1 = h1[:,-1,:]
+			h2 = h2[:,-1,:]
+
 		#concatenate (p - h1, p - h2, p , h1, h2)
 		logit = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
 
+		print(logit.size())
 		for decoder in self.decoder:
 			logit = decoder(logit)
 
 		if y is None:
 			return logit
 
-		loss = self.loss_fn(logit, y.view(-1))
+		loss = self.loss_fn(logit.view(-1), y.view(-1))
 		return logit, loss
 
 class StaticEmbeddingCNN(nn.Module):
