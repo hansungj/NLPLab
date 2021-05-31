@@ -2,13 +2,14 @@ import numpy as np
 import re
 from collections import defaultdict
 import json
+import sys
 
 
-def tokenize(sent, 
+def tokenize(sent,
 			delimiters = r'\s+', 
 			start_symbol=None, 
 			end_symbol=None):
-
+	
 	tokenized = re.split(delimiters, sent)
 	if start_symbol:
 		tokenized.insert(0, start_symbol)
@@ -17,12 +18,14 @@ def tokenize(sent,
 		tokenized.append(end_symbol)
 	return tokenized
 
-def frequency_count(dataset, delimiters = r'\s+',  start_symbol=True, end_symbol=True):
+def frequency_count(dataset, lower, delimiters = r'\s+',  start_symbol=True, end_symbol=True):
 	freq_count = defaultdict(int)
 	for i in range(len(dataset)):
 		_, obs1, obs2, hyp1, hyp2, label = dataset[i]
 		textdata = [obs1, obs2, hyp1, hyp2]
 		for textelem in textdata:
+			if lower:
+				textelem = textelem.lower()
 			for token in tokenize(textelem, delimiters):
 				freq_count[token] += 1
 	return freq_count
