@@ -69,7 +69,7 @@ class StaticEmbeddingMixture(nn.Module):
 		p = self.embedding(p) # B X L X H
 		h1 = self.embedding(h1)
 		h2 = self.embedding(h2)
-
+		
 		#pool
 		p = self.pooling(p, dim=1) #B x 1 X H
 		h1 = self.pooling(h1, dim=1)
@@ -119,7 +119,7 @@ class StaticEmbeddingRNN(nn.Module):
 		self.decoder = nn.ModuleList([Head(hidden_encoder_size*5, hidden_decoder_size, nn.ReLU(), dropout)])
 		for _ in range(num_decoder_layers-2):
 			self.decoder.append(Head(hidden_decoder_size, hidden_decoder_size, nn.ReLU(),dropout))
-		self.decoder.append(nn.Linear(hidden_decoder_size,1))
+		self.decoder.append(Head(hidden_decoder_size, 1, nn.Identity(), dropout))
 
 		self.loss_fn = nn.BCEWithLogitsLoss()
 
@@ -155,10 +155,10 @@ class StaticEmbeddingCNN(nn.Module):
 
 	def __init__(self,
 				 embedding,
-				 kernel_sizes = [3,4,5],
-				 num_kernels = [20,20,20],
 				 hidden_decoder_size,
-				 dropout):
+				 dropout,
+				 kernel_sizes = [3,4,5],
+				 num_kernels = [20,20,20]):
 
 		super().__init__()
 
