@@ -129,10 +129,10 @@ class StaticEmbeddingCNN(nn.Module):
 
 	def __init__(self,
 				 embedding,
-				 kernel_sizes = [3,4,5],
-				 num_kernels = [20,20,20],
 				 hidden_decoder_size,
-				 dropout):
+				 dropout,
+				 kernel_sizes = [3,4,5],
+				 num_kernels = [20,20,20]):
 
 		super().__init__()
 
