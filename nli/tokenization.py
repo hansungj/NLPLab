@@ -21,12 +21,12 @@ class WhiteSpaceTokenizer(object):
 	def tokenize(self, x):
 		if self.lower:
 			x=x.lower()
-		tokens = tokenize(x, r'\s+', start_symbol=None, end_symbol=None)
+		tokens = tokenize(x, r'\s+')
 		return tokens 
 
 	def convert_tokens_to_id(self, tokens):
 		unk_token_id = self.vocab['token2idx'][self.unk_token]
-		encoded = [self.vocab.get(token, unk_token_id) for token in tokens]
+		encoded = [self.vocab['token2idx'].get(token, unk_token_id) for token in tokens]
 		return encoded
 
 class SubwordTokenizer(object):
@@ -44,7 +44,7 @@ class SubwordTokenizer(object):
 		self.splt_token_id = 4
 
 	def tokenize(self, x):
-		tokens = tokenize(x, r'\s+', start_symbol=True, end_symbol=True)
+		tokens = tokenize(x, r'\s+')
 
 		# here greddily find the best split for each token 
 		for token in tokens:
