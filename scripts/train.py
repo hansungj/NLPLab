@@ -307,9 +307,6 @@ def main(args):
 	if args.optimizer == 'adam':
 		optimizer = torch.optim.Adam(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
 
-	elif args.optimizer == 'adamW':
-		optimizer = AdamW(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
-
 	#scheduler 
 	if args.scheduler:
 		pass
