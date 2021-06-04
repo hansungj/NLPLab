@@ -96,7 +96,7 @@ parser.add_argument('--tokenizer', default='regular', help='choose tokenizer: re
 parser.add_argument('--optimizer', default='adam', help='adam/adamW/sgd/..')
 parser.add_argument('--beta_1', default=0.99, type=float, help='beta1 for first moment')
 parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for second moment')
-parser.add_argument('--weight_decay', default=False, type=bool)
+parser.add_argument('--weight_decay', default=0, type=float)
 parser.add_argument('--eps', default=1e-8, type=float)
 parser.add_argument('--scheduler', default=None, help='')
 parser.add_argument('--num_warming_steps', default=None, help='number of warming steps for the scheduler')
