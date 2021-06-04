@@ -26,7 +26,8 @@ logger = logging.getLogger(__name__)
 #directory for data/train/val 
 parser.add_argument('--data_path', default='data/alphanli/tsv/train.tsv', type=str, help='data to build the vocabulary on')
 parser.add_argument('--out_dir', default='data', type=str, help='output directory for vocab json')
-parser.add_argument('--vocab_type', default='regular', type=str, help='build regular or bpe')
+parser.add_argument('--vocab_type', default='reg', type=str, help='build regular or bpe')
+parser.add_argument('--lower', default=True, type=bool)
 parser.add_argument('--min_occurence', default=1, type=str, help='minimum occurence of a token to include in a vocabulary')
 parser.add_argument('--vocabulary_size', default = None, type=int)
 
@@ -38,11 +39,12 @@ parser.add_argument('--pad_symbol', default='<pad>', type=str, help='pad token')
 
 def main(args): #so that the function can be called not from command line only
 
-	if args.vocab_type == 'regular': # this option is enough for BoW model
+	if args.vocab_type == 'reg': # this option is enough for BoW model
 		data = open_tsv_file(args.data_path)
-		freq_count = frequency_count(data)
+		freq_count = frequency_count(data, args.lower)
 
 		#filter by vocabulary size
+		logger.info('Saving the vocabulary to {}'.format(args.out_dir))
 		logger.info('Unfiltered vocabulary length: {}'.format(len(freq_count)))
 	
 
@@ -56,17 +58,16 @@ def main(args): #so that the function can be called not from command line only
 			freq_count = sorted(((k,v) in k,v in freq_count.items()), reverse=True, key = lambda x: x[1])[:args.vocabulary_size]
 			freq_count = {k:v for k,v in freq_count}
 
-		token2idx = token_to_idx(freq_count, 
-								delimiters = r'\s+', 
+		token2idx = token_to_idx(freq_count,
 								pad_symbol = args.pad_symbol,
 								start_symbol = args.start_symbol, 
 								end_symbol = args.end_symbol, 
-								null_symbol = args.null_symbol,
+								unk_symbol = args.null_symbol,
 								split_symbol = args.split_symbol)
 
 		idx2token = idx_to_token(token2idx)
 
-		logger.info('filtered vocabulary length: {}'.format(len(token2idx)))
+		logger.info('filtered vocabulary length + special symbols: {}'.format(len(token2idx)))
 
 	elif args.vocab_type == 'bpe':
 		'''
@@ -79,10 +80,11 @@ def main(args): #so that the function can be called not from command line only
 	'token2idx': token2idx,
 	'idx2token': idx2token,
 	'pad_token': args.pad_symbol,
-	'null_token': args.null_symbol,
+	'unk_token': args.null_symbol,
 	'end_token': args.end_symbol,
 	'start_token':args.start_symbol,
-	'split_token':args.split_symbol
+	'split_token':args.split_symbol,
+	'lower': args.lower
 	}
 
 	with open(os.path.join(args.out_dir, 'vocab.json'), 'w') as f:
