@@ -39,8 +39,8 @@ def cosine(x,y):
 	axes = set(x[1].keys()) 
 	axes = axes.intersection(set(y[1].keys()))
 	for axis in axes:
-		x_ = x.get(axis, 0)
-		y_ = y.get(axis, 0)
+		x_ = x[1].get(axis, 0)
+		y_ = y[1].get(axis, 0)
 		dist += x_ * y_
 	dist = dist / (x[0] * y[0])
 	return dist
