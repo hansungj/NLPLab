@@ -1,4 +1,3 @@
-# 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F 
@@ -171,11 +170,6 @@ class StaticEmbeddingRNN(nn.Module):
 		return logit, loss
 
 class StaticEmbeddingCNN(nn.Module):
-	'''
-	
-	use different sized conv kernels - do some kind of pooling to make them into a single vector 
-
-	'''
 
 	def __init__(self,
 				 embedding,
@@ -189,13 +183,13 @@ class StaticEmbeddingCNN(nn.Module):
 		self.embedding = embedding 
 		embedding_size = embedding.weight.size(1)
 		
-		self.conv1d_list_prem = nn.ModuleList([nn.Conv1d(in_channels=self.embedding_size,
+		self.conv1d_list_prem = nn.ModuleList([nn.Conv1d(in_channels=embedding_size,
 														out_channels=num_kernels[i],
 														kernel_size=kernel_sizes[i])
 													for i in range(len(kernel_sizes))
 												])
 		
-		self.conv1d_list_hyp = nn.ModuleList([nn.Conv1d(in_channels=self.embedding_size,
+		self.conv1d_list_hyp = nn.ModuleList([nn.Conv1d(in_channels=embedding_size,
 														out_channels=num_kernels[i],
 														kernel_size=kernel_sizes[i])
 													for i in range(len(kernel_sizes))
@@ -205,7 +199,7 @@ class StaticEmbeddingCNN(nn.Module):
 							nn.Linear(sum(num_kernels)*5,hidden_decoder_size),
 							nn.ReLU(),
 							nn.Dropout(dropout),
-							nn.LayerNorm(hidde_decoder_size),
+							nn.LayerNorm(hidden_decoder_size),
 							nn.Linear(hidden_decoder_size,1))
 		self.loss_fn = nn.BCEWithLogitsLoss()
 					
@@ -227,23 +221,24 @@ class StaticEmbeddingCNN(nn.Module):
 		
 		#max_pooling
 		p_pool_list = [F.max_pool1d(p_conv, kernel_size=p_conv.shape[2])
-            for p_conv in p_conv_list]
+			for p_conv in p_conv_list]
 		h1_pool_list = [F.max_pool1d(h1_conv, kernel_size=h1_conv.shape[2])
-            for h1_conv in h1_conv_list]
+			for h1_conv in h1_conv_list]
 		h2_pool_list = [F.max_pool1d(h2_conv, kernel_size=h2_conv.shape[2])
-            for h2_conv in h2_conv_list]
+			for h2_conv in h2_conv_list]
 		
 		#concatenate to get a single feature vector
 		p = torch.cat([p_pool.squeeze(dim=2) for p_pool in p_pool_list],
-                         dim=1)
+						dim=1)
 		h1 = torch.cat([h1_pool.squeeze(dim=2) for h1_pool in h1_pool_list],
-                         dim=1)
+						dim=1)
 		h2 = torch.cat([h2_pool.squeeze(dim=2) for h2_pool in h2_pool_list],
-                         dim=1)			
+						dim=1)			
 
 		#concatenate (p - h1, p - h2, p , h1, h2)
 		concat = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
 		logit = self.decoder(concat)
+		logit = logit.view(-1)
 
 		if y is None:
 			return logit
