@@ -3,6 +3,13 @@
 
 prepeare data into h5 file which can be used to run the models 
 
+
+three things - 
+
+1. early stopping and saving the check points along with rotating the checkpoints by deleting the old ones
+2. split train into 90 10 train/val so that we can use the "val" as the test 
+3. implement ESIM 
+4. run.py which runs the model by their checkpoint for evaluating 
 '''
 import logging
 import os
@@ -236,165 +243,166 @@ def main(args):
 	4. write training loop / evaluatation loop 
 
 	'''
-
-	vocab = json.load(open(args.vocab, 'r'))
-	if args.tokenizer == 'regular':
-		#sanity check
-		assert(vocab['unk_token'] is not None)
-		assert(vocab['start_token'] is not None)
-		assert(vocab['end_token'] is not None)
-		assert(vocab['pad_token'] is not None)
-		tokenizer = WhiteSpaceTokenizer(vocab)
-
-	'''
-	elif ..
-	here we will further implement initializing  
-
-	1. word piece tokenizer
-
-	2. pretrained tokenizer from hugging face
-
-	'''
-
-	#initialize dataloader
-	train_dataset = AlphaDataset(args.train_tsv, tokenizer, args.max_samples_per_epoch)
-	train_loader=load_dataloader(train_dataset, args.batch_size, shuffle=args.shuffle, drop_last = True, num_workers = args.num_workers)
-	stats = metrics.MetricKeeper(args.eval_measure.split(','))
-
-	#initialize val-dataloader
-	if args.evaluate:
-		val_dataset = AlphaDataset(args.val_tsv, tokenizer, args.max_samples_per_epoch)
-		val_loader=load_dataloader(val_dataset, args.batch_size, shuffle=args.shuffle, drop_last = False, num_workers = args.num_workers)
-		val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
-
-	#initialize model 
-	if  args.model_type == 'StaticEmb-mixture':
-		padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
-		embedding_matrix = build_embedding_glove(vocab, args.glove_model,padding_idx)
-		model = StaticEmbeddingMixture(embedding_matrix,
-				 args.se_hidden_encoder_size,
-				 args.se_hidden_decoder_size,
-				 args.se_num_encoder_layers,
-				 args.se_num_decoder_layers,
-				 args.dropout,
-				 args.sem_pooling)
-
-	elif args.model_type == 'StaticEmb-rnn':
-		padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
-		embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx)
-		model = StaticEmbeddingRNN (embedding_matrix,
-				 args.se_hidden_encoder_size,
-				 args.se_hidden_decoder_size,
-				 args.se_num_encoder_layers,
-				 args.se_num_decoder_layers,
-				 args.dropout,
-				 args.sernn_bidirectional)
-
-	if args.use_cuda:
-		if not torch.cuda.is_available():
-			print('use_cuda=True but cuda is not available')
-		device = torch.device("cuda")
-		model.cuda()
 	else:
-		device = torch.device('cpu')
+		vocab = json.load(open(args.vocab, 'r'))
+		if args.tokenizer == 'regular':
+			#sanity check
+			assert(vocab['unk_token'] is not None)
+			assert(vocab['start_token'] is not None)
+			assert(vocab['end_token'] is not None)
+			assert(vocab['pad_token'] is not None)
+			tokenizer = WhiteSpaceTokenizer(vocab)
 
-	#group parmaeters if we are weight decaying
-	
-	if args.weight_decay:
-		parameters = prepare_model_parameters_weight_decay(model.named_parameters())
-	else:
-		parameters = model.parameters()
+		'''
+		elif ..
+		here we will further implement initializing  
 
-	#optimizer 
-	if args.optimizer == 'adam':
-		optimizer = torch.optim.Adam(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
+		1. word piece tokenizer
 
-	#scheduler 
-	if args.scheduler:
-		pass
+		2. pretrained tokenizer from hugging face
 
-	'''
-	we might need to write a separate training loop for pretrained BERT models but we will leave it like this for now
+		'''
 
-	this training loop was written for StaticEmb models 
-	'''
-	val_loss = 1000 # 1000 for early stop
-	for epoch in tqdm(range(args.num_epochs), desc='epoch'):
-		labels = []
-		pred = []
-		train_loss = 0
-		model.train()
-		model.zero_grad()
-		for step, batch in enumerate(train_loader):
-			hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
-			if args.use_cuda:
-				hyp1 = hyp1.to(device)
-				hyp2 = hyp2.to(device)
-				premise = premise.to(device)
-				label = label.to(device)
+		#initialize dataloader
+		train_dataset = AlphaDataset(args.train_tsv, tokenizer, args.max_samples_per_epoch)
+		train_loader=load_dataloader(train_dataset, args.batch_size, shuffle=args.shuffle, drop_last = True, num_workers = args.num_workers)
+		stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
-			
-			logits, loss = model(premise, hyp1, hyp2, label)
-			loss.backward()
-
-			if args.grad_norm_clip:
-				torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_norm_clip)
-			'''
-			gradient accumulation 
-			'''
-			optimizer.step()
-			if args.scheduler:
-				scheduler.step()
-			optimizer.zero_grad()
-
-			#keep things 
-			train_loss += loss.mean().item()
-			labels.extend(label.tolist())
-			pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
-
-		#update keepr for log liklihood
-		stats.update('loglikelihood',train_loss)
-		stats.eval(labels,pred)
-		#print for status update
-		logging.info('Train stats:')
-		stats.print()
-
+		#initialize val-dataloader
 		if args.evaluate:
-			model.eval()
-			with torch.no_grad():
-				labels = []
-				pred = []
-				total_loss = 0
-				for step, batch in enumerate(val_loader):
-					hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']
+			val_dataset = AlphaDataset(args.val_tsv, tokenizer, args.max_samples_per_epoch)
+			val_loader=load_dataloader(val_dataset, args.batch_size, shuffle=args.shuffle, drop_last = False, num_workers = args.num_workers)
+			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
+		#initialize model 
+		if  args.model_type == 'StaticEmb-mixture':
+			padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
+			embedding_matrix = build_embedding_glove(vocab, args.glove_model,padding_idx)
+			model = StaticEmbeddingMixture(embedding_matrix,
+					 args.se_hidden_encoder_size,
+					 args.se_hidden_decoder_size,
+					 args.se_num_encoder_layers,
+					 args.se_num_decoder_layers,
+					 args.dropout,
+					 args.sem_pooling)
 
+		elif args.model_type == 'StaticEmb-rnn':
+			padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
+			embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx)
+			model = StaticEmbeddingRNN (embedding_matrix,
+					 args.se_hidden_encoder_size,
+					 args.se_hidden_decoder_size,
+					 args.se_num_encoder_layers,
+					 args.se_num_decoder_layers,
+					 args.dropout,
+					 args.sernn_bidirectional)
 
-					if args.use_cuda:
-						hyp1 = hyp1.to(device)
-						hyp2 = hyp2.to(device)
-						premise = premise.to(device)
-						label = label.to(device)
+		if args.use_cuda:
+			if not torch.cuda.is_available():
+				print('use_cuda=True but cuda is not available')
+			device = torch.device("cuda")
+			model.cuda()
+		else:
+			device = torch.device('cpu')
 
-					#update keepr for log liklihood
-					logits, loss = model(premise, hyp1, hyp2, label)
-					total_loss += loss.mean().item()
+		#group parmaeters if we are weight decaying
+		
+		if args.weight_decay:
+			parameters = prepare_model_parameters_weight_decay(model.named_parameters())
+		else:
+			parameters = model.parameters()
 
-					labels.extend(label.tolist())
-					pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+		#optimizer 
+		if args.optimizer == 'adam':
+			optimizer = torch.optim.Adam(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
 
-				val_stats.update('loglikelihood',total_loss)
-				val_stats.eval(labels,pred)
+		#scheduler 
+		if args.scheduler:
+			pass
 
-				logging.info('Val stats:')
-				val_stats.print()
+		'''
+		we might need to write a separate training loop for pretrained BERT models but we will leave it like this for now
+
+		this training loop was written for StaticEmb models 
+		'''
+		val_loss = 1000 # 1000 for early stop
+		for epoch in tqdm(range(args.num_epochs), desc='epoch'):
+			labels = []
+			pred = []
+			train_loss = 0
+			model.train()
+			model.zero_grad()
+			for step, batch in enumerate(train_loader):
+				hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
+				if args.use_cuda:
+					hyp1 = hyp1.to(device)
+					hyp2 = hyp2.to(device)
+					premise = premise.to(device)
+					label = label.to(device)
+
+				
+				logits, loss = model(premise, hyp1, hyp2, label)
+				loss.backward()
+
+				if args.grad_norm_clip:
+					torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_norm_clip)
 
 				'''
-				here implement 
-				2. early stopping - based on evaluation measure accuracy
-				3. saving best model at a check point pth - torch.save()
+				gradient accumulation 
 				'''
-				NotImplementedError 
+				optimizer.step()
+				if args.scheduler:
+					scheduler.step()
+				optimizer.zero_grad()
+
+				#keep things 
+				train_loss += loss.mean().item()
+				labels.extend(label.tolist())
+				pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+
+			#update keepr for log liklihood
+			stats.update('loglikelihood',train_loss)
+			stats.eval(labels,pred)
+			#print for status update
+			logging.info('Train stats:')
+			stats.print()
+
+			if args.evaluate:
+				model.eval()
+				with torch.no_grad():
+					labels = []
+					pred = []
+					total_loss = 0
+					for step, batch in enumerate(val_loader):
+						hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']
+
+
+
+						if args.use_cuda:
+							hyp1 = hyp1.to(device)
+							hyp2 = hyp2.to(device)
+							premise = premise.to(device)
+							label = label.to(device)
+
+						#update keepr for log liklihood
+						logits, loss = model(premise, hyp1, hyp2, label)
+						total_loss += loss.mean().item()
+
+						labels.extend(label.tolist())
+						pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+
+					val_stats.update('loglikelihood',total_loss)
+					val_stats.eval(labels,pred)
+
+					logging.info('Val stats:')
+					val_stats.print()
+
+					'''
+					here implement 
+					2. early stopping - based on evaluation measure accuracy
+					3. saving best model at a check point pth - torch.save()
+					'''
+					NotImplementedError 
 	#save 
 	stats_name = '_'.join([args.model_type, args.output_name,'stats.json'])
 	output_path = os.path.join(args.output_dir, stats_name)

@@ -1,42 +1,48 @@
-# #generate.py
-print('Deprecated ..  This file should be changed so that it is able to clean the files rather than prepare in some other format')
-# '''
 
-# prepeare data into h5 file which can be used to run the models 
+'''
 
-# '''
-# import logging
-# import os
-# import numpy as np
-# import h5py
-# import json
-# import pickle
-# import argparse
-# from collections import defaultdict
+prepare data into h5 file which can be used to run the models 
 
-# import nli.utils as utils 
-# import nli.preprocess as preprocess
-# from nltk.stem.wordnet import WordNetLemmatizer
+We will use this file for splitting for train/val split from train.tsv
 
-# parser = argparse.ArgumentParser()
+'''
+import numpy as np
+import argparse
+import os 
+from sklearn.model_selection import train_test_split 
 
-# #directory 
-# parser.add_argument('--data_dir', default='data', type=str)
-# parser.add_argument('--output_dir', default='data', type=str)
-# parser.add_argument('--output_name', default='train')
-# parser.add_argument('--tsv_dir', default='alphanli/tsv/train.tsv', type=str)
+parser = argparse.ArgumentParser()
 
-# #option 
-# parser.add_argument('--model_type', default='json')
-# parser.add_argument('--tokenizer', default='default')
-# parser.add_argument('--delimiter', default=' ')
-# parser.add_argument('--lemmatizer', default=None)
-# parser.add_argument('--start_symbol',default=False)
-# parser.add_argument('--end_symbol',default=False)
-# parser.add_argument('--null_symbol',default=True)
-# parser.add_argument('--add_split_token',default=False)
-# parser.add_argument('--max_hyp_len',default=50)
-# parser.add_argument('--max_ob_len',default=100)
+#directory 
+parser.add_argument('--tsv_path', default='data/alphanli/tsv/train.tsv', type=str)
+parser.add_argument('--output_dir', default='data/alphanli/tsv', type=str)
+parser.add_argument('--suffix', default='_split')
+
+#option 
+parser.add_argument('--split', default=0.1, type=float)
+
+def main(args):
+
+	if not os.path.exists(args.output_dir):
+		os.mkdirs(args.output_dir)
+
+	data = open(args.tsv_path, 'r').readlines()
+
+	train, dev = train_test_split(data, test_size = args.split, shuffle=True)
+
+
+	with open(os.path.join(args.output_dir, 'train' + args.suffix + '.tsv'), 'w') as f:
+		for l in train:
+			f.write(l)
+
+	with open(os.path.join(args.output_dir, 'dev' + args.suffix + '.tsv'), 'w') as f:
+		for l in train:
+			f.write(l)
+
+if __name__ == '__main__':
+	args = parser.parse_args()
+	main(args)
+
 
 # def main(args):
 
