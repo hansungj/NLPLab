@@ -11,26 +11,28 @@ class WhiteSpaceTokenizer(object):
 				 vocab):
 
 		self.vocab = vocab #json.load(open(vocab, 'r'))
+		self.lower = vocab['lower']
 		self.pad_token = vocab.get('pad_token', None)
-		self.unk_token = vocab.get('null_token', None)
-		self.start_token = vocab.get('null_token', None)
-		self.end_token = vocab.get('null_token', None)
-		self.splt_token = vocab.get('null_token', None)
+		self.unk_token = vocab.get('unk_token', None)
+		self.start_token = vocab.get('start_token', None)
+		self.end_token = vocab.get('end_token', None)
+		self.split_token = vocab.get('split_token', None)
 
 	def tokenize(self, x):
-		tokens = tokenize(x, r'\s+', start_symbol=None, end_symbol=None)
+		if self.lower:
+			x=x.lower()
+		tokens = tokenize(x, r'\s+')
 		return tokens 
 
-	def convert_tokens_to_idx(self, tokens):
-		unk_token_id = vocab['token2idx'][self.unk_token]
-		encoded = [self.vocab.get(token, unk_token_id)for token in tokens]
+	def convert_tokens_to_id(self, tokens):
+		unk_token_id = self.vocab['token2idx'][self.unk_token]
+		encoded = [self.vocab['token2idx'].get(token, unk_token_id) for token in tokens]
 		return encoded
 
 class SubwordTokenizer(object):
 	'''
 	Word word tokenizer - vocabulary needs to be built using BPE/WordPiece
 	'''
-
 	def __init__(self, 
 				vocab):
 
@@ -42,7 +44,7 @@ class SubwordTokenizer(object):
 		self.splt_token_id = 4
 
 	def tokenize(self, x):
-		tokens = tokenize(x, r'\s+', start_symbol=True, end_symbol=True)
+		tokens = tokenize(x, r'\s+')
 
 		# here greddily find the best split for each token 
 		for token in tokens:

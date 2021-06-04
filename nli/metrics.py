@@ -32,6 +32,9 @@ class MetricKeeper(object):
 		#manually update 
 		self.keeper[eval_name].append(eval_r)
 
+	def print(self):
+		for key, val in self.keeper.items():
+			print('{}={}'.format(key,val[-1]))
 
 def log_likelihood(y, y_pred, k=2):
 	'''

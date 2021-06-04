@@ -12,6 +12,9 @@ import pickle
 import time
 import json
 from tqdm import tqdm
+import torch
+import torch.nn.functional as F
+import torch.nn as nn
 
 #pip install transformers
 
@@ -28,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 #directory 
 parser.add_argument('--data_dir', default='data', type=str)
-parser.add_argument('--vocab', default=None, type=str)
+parser.add_argument('--vocab', default='data/vocab.json', type=str)
 
 #directory for data/train/val 
 parser.add_argument('--train_tsv', default='data/alphanli/tsv/train.tsv', type=str)
@@ -51,10 +54,15 @@ parser.add_argument('--output_name', default='', type=str)
 #general training settings 
 parser.add_argument('--model_type', default='BoW', type=str)
 parser.add_argument('--batch_size', default=128, type=int)
-parser.add_argument('--num_epochs', default =1, type=int, help = 'Number of training epochs')
+parser.add_argument('--num_workers', default=0, type=int)
+parser.add_argument('--shuffle', default=True, type=bool)
+parser.add_argument('--num_epochs', default =100, type=int, help = 'Number of training epochs')
 parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples per epoch')
-parser.add_argument('--evaluate', default=True, type=int, help='Decide to evaluate on validation set')
+parser.add_argument('--evaluate', default=True, type=bool, help='Decide to evaluate on validation set')
 parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evaluation measure') # put multiple eval measures separated by ','
+
+#for testing 
+# parser.add_argment('--fit_one_batch', default=False, type=bool, help='fits one batch for santy check for model')
 
 #model - BOW options
 parser.add_argument('--bow_classifier', default='maxent', type=str, help='Maximum entropy classifier / Logistic Regression / Perceptron')
@@ -83,13 +91,13 @@ parser.add_argument('--bow_me_regularization_coef', default=0.1, help='L2 regula
 
 #deep learning models 
 parser.add_argument('--use_cuda', default=False, type=bool, help = 'activate to use cuda')
+parser.add_argument('--learning_rate', default=1e-4, type=float)
 parser.add_argument('--tokenizer', default='regular', help='choose tokenizer: regular/bpe/pretrained')
 parser.add_argument('--optimizer', default='adam', help='adam/adamW/sgd/..')
 parser.add_argument('--beta_1', default=0.99, type=float, help='beta1 for first moment')
 parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for second moment')
-parser.add_argument('--weight_decay', default=False, type=bool)
-parser.add_argument('--optimizer_eps', default=1e-6, type=float)
-parser.add_argument('--learning_rate', default=1e-4, type=float)
+parser.add_argument('--weight_decay', default=0, type=float)
+parser.add_argument('--eps', default=1e-8, type=float)
 parser.add_argument('--scheduler', default=None, help='')
 parser.add_argument('--num_warming_steps', default=None, help='number of warming steps for the scheduler')
 parser.add_argument('--dropout', default=0.5, type=float, help='')
@@ -98,14 +106,16 @@ parser.add_argument('--grad_accumulation_steps', default=None, type=int, help='n
 
 #model -static embedding  
 parser.add_argument('--glove_model', default='glove-wiki-gigaword-50', type=str, help='choose from fasttext-wiki-news-subwords-300, conceptnet-numberbatch-17-06-300, word2vec-ruscorpora-300, word2vec-google-news-300, glove-wiki-gigaword-50, glove-wiki-gigaword-100, glove-wiki-gigaword-200, glove-wiki-gigaword-300, glove-twitter-25, glove-twitter-50, glove-twitter-100, glove-twitter-200') 
-parser.add_argument('--se_hidden_encoder_size', default=100, type=int, help='hidden size for the encoder')
-parser.add_argument('--se_hidden_decoder_size', default=100, type=int, help='hidden size for the decoder')
+parser.add_argument('--freeze_embedding', default=True, type=bool, help='freezes the glvoe pretrained embedding')
+parser.add_argument('--se_hidden_encoder_size', default=200, type=int, help='hidden size for the encoder')
+parser.add_argument('--se_hidden_decoder_size', default=200, type=int, help='hidden size for the decoder')
+parser.add_argument('--se_num_encoder_layers', default=2, type=int, help='number of encoder layers ')
+parser.add_argument('--se_num_decoder_layers', default=2, type=int, help='number of decoder layers ')
 
 #model - static embedding Mixture specific
 parser.add_argument('--sem_pooling', default='sum', help='choose from sum/product/max -- used to pool the vectors from premise/hyp1/hyp2')
 
 #model -static embedding RNN specific
-parser.add_argument('--sernn_num_rnn_layers', default=2, type=int, help='number of rnn layers for encoder') 
 parser.add_argument('--sernn_bidirectional', default=False, type=bool, help='bidirectional for encoder or not') 
 
 #directory for data/train/val
@@ -233,6 +243,7 @@ def main(args):
 		assert(vocab['unk_token'] is not None)
 		assert(vocab['start_token'] is not None)
 		assert(vocab['end_token'] is not None)
+		assert(vocab['pad_token'] is not None)
 		tokenizer = WhiteSpaceTokenizer(vocab)
 
 	'''
@@ -247,35 +258,40 @@ def main(args):
 
 	#initialize dataloader
 	train_dataset = AlphaDataset(args.train_tsv, tokenizer, args.max_samples_per_epoch)
-	train_loader=load_dataloader(train_dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0)
+	train_loader=load_dataloader(train_dataset, args.batch_size, shuffle=args.shuffle, drop_last = True, num_workers = args.num_workers)
 	stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 	#initialize val-dataloader
 	if args.evaluate:
-		val_dataset = AlphaDataset(args.dev_tsv, tokenizer, args.max_samples_per_epoch)
-		val_loader=load_dataloader(val_dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0)
+		val_dataset = AlphaDataset(args.val_tsv, tokenizer, args.max_samples_per_epoch)
+		val_loader=load_dataloader(val_dataset, args.batch_size, shuffle=args.shuffle, drop_last = False, num_workers = args.num_workers)
 		val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 	#initialize model 
 	if  args.model_type == 'StaticEmb-mixture':
-		embedding_matrix = build_embedding_glove(vocab, args.glove_model)
+		padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
+		embedding_matrix = build_embedding_glove(vocab, args.glove_model,padding_idx)
 		model = StaticEmbeddingMixture(embedding_matrix,
 				 args.se_hidden_encoder_size,
 				 args.se_hidden_decoder_size,
+				 args.se_num_encoder_layers,
+				 args.se_num_decoder_layers,
 				 args.dropout,
 				 args.sem_pooling)
 
 	elif args.model_type == 'StaticEmb-rnn':
-		embedding_matrix = build_embedding_glove(vocab, args.glove_model)
+		padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
+		embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx)
 		model = StaticEmbeddingRNN (embedding_matrix,
-				 args.num_rnn_layers,
 				 args.se_hidden_encoder_size,
 				 args.se_hidden_decoder_size,
+				 args.se_num_encoder_layers,
+				 args.se_num_decoder_layers,
 				 args.dropout,
 				 args.sernn_bidirectional)
 
 	if args.use_cuda:
-		if not torch.cuda_is_available():
+		if not torch.cuda.is_available():
 			print('use_cuda=True but cuda is not available')
 		device = torch.device("cuda")
 		model.cuda()
@@ -283,16 +299,15 @@ def main(args):
 		device = torch.device('cpu')
 
 	#group parmaeters if we are weight decaying
-	parameters = model.parameters()
+	
 	if args.weight_decay:
-		parameters = prepare_model_parameters_weight_decay(parameters)
+		parameters = prepare_model_parameters_weight_decay(model.named_parameters())
+	else:
+		parameters = model.parameters()
 
 	#optimizer 
-	if args.optimzer == 'adam':
-		torch.optim.Adam(parameters, args.learning_rate, (args.optimizer_beta_1,optimizer_beta_2), args.optimizer_eps)
-
-	elif args.optimizer == 'adamW':
-		AdamW(parameters, args.learning_rate, (args.optimizer_beta_1,optimizer_beta_2), args.optimizer_eps)
+	if args.optimizer == 'adam':
+		optimizer = torch.optim.Adam(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
 
 	#scheduler 
 	if args.scheduler:
@@ -308,54 +323,78 @@ def main(args):
 		labels = []
 		pred = []
 		train_loss = 0
-
+		model.train()
+		model.zero_grad()
 		for step, batch in enumerate(train_loader):
-			hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']
-			
+			hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
 			if args.use_cuda:
 				hyp1 = hyp1.to(device)
 				hyp2 = hyp2.to(device)
 				premise = premise.to(device)
 				label = label.to(device)
 
-			model.train()
-			loss, logtis = model(premise, hyp1, hyp2, label)
-
-			logging.info('Loss: {}'.format(loss))
+			
+			logits, loss = model(premise, hyp1, hyp2, label)
 			loss.backward()
 
 			if args.grad_norm_clip:
 				torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_norm_clip)
-
 			'''
 			gradient accumulation 
 			'''
 			optimizer.step()
 			if args.scheduler:
 				scheduler.step()
-			model.zero_grad()
+			optimizer.zero_grad()
 
 			#keep things 
 			train_loss += loss.mean().item()
 			labels.extend(label.tolist())
-			pred.extend(logits>0.5).tolist()
+			pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
 
 		#update keepr for log liklihood
-		for epoch, l in enumerate(L):
-			stats.update('loglikelihood',train_loss)
+		stats.update('loglikelihood',train_loss)
 		stats.eval(labels,pred)
+		#print for status update
+		logging.info('Train stats:')
+		stats.print()
 
-		if evaluate:
+		if args.evaluate:
 			model.eval()
 			with torch.no_grad():
-				pass
-			'''
-			here implement 
-			1.evaluation  
-			2. early stopping
-			3. saving best model at a check point pth - torch.save()
-			'''
-			NotImplementedError 
+				labels = []
+				pred = []
+				total_loss = 0
+				for step, batch in enumerate(val_loader):
+					hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']
+
+
+
+					if args.use_cuda:
+						hyp1 = hyp1.to(device)
+						hyp2 = hyp2.to(device)
+						premise = premise.to(device)
+						label = label.to(device)
+
+					#update keepr for log liklihood
+					logits, loss = model(premise, hyp1, hyp2, label)
+					total_loss += loss.mean().item()
+
+					labels.extend(label.tolist())
+					pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+
+				val_stats.update('loglikelihood',total_loss)
+				val_stats.eval(labels,pred)
+
+				logging.info('Val stats:')
+				val_stats.print()
+
+				'''
+				here implement 
+				2. early stopping - based on evaluation measure accuracy
+				3. saving best model at a check point pth - torch.save()
+				'''
+				NotImplementedError 
 	#save 
 	stats_name = '_'.join([args.model_type, args.output_name,'stats.json'])
 	output_path = os.path.join(args.output_dir, stats_name)
@@ -381,7 +420,6 @@ def prepare_model_parameters_weight_decay(named_parameters):
 
 def train(model, dataloader):
 	return None
-
 
 def evaluate(model, dataloader):
 	return None
