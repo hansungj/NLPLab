@@ -299,9 +299,11 @@ def main(args):
 		device = torch.device('cpu')
 
 	#group parmaeters if we are weight decaying
-	parameters = model.parameters()
+	
 	if args.weight_decay:
-		parameters = prepare_model_parameters_weight_decay(parameters)
+		parameters = prepare_model_parameters_weight_decay(model.named_parameters())
+	else:
+		parameters = model.parameters()
 
 	#optimizer 
 	if args.optimizer == 'adam':
