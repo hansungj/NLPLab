@@ -58,7 +58,7 @@ parser.add_argument('--num_workers', default=0, type=int)
 parser.add_argument('--shuffle', default=True, type=bool)
 parser.add_argument('--num_epochs', default =100, type=int, help = 'Number of training epochs')
 parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples per epoch')
-parser.add_argument('--evaluate', default=True, type=int, help='Decide to evaluate on validation set')
+parser.add_argument('--evaluate', default=True, type=bool, help='Decide to evaluate on validation set')
 parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evaluation measure') # put multiple eval measures separated by ','
 
 #for testing 
@@ -325,7 +325,7 @@ def main(args):
 		pred = []
 		train_loss = 0
 		model.train()
-		model.zero_gard()
+		model.zero_grad()
 		for step, batch in enumerate(train_loader):
 			hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
 			if args.use_cuda:
@@ -360,7 +360,7 @@ def main(args):
 		logging.info('Train stats:')
 		stats.print()
 
-		if evaluate:
+		if args.evaluate:
 			model.eval()
 			with torch.no_grad():
 				labels = []
