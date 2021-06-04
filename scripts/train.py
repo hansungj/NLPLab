@@ -291,7 +291,7 @@ def main(args):
 				 args.sernn_bidirectional)
 
 	if args.use_cuda:
-		if not torch.cuda_is_available():
+		if not torch.cuda.is_available():
 			print('use_cuda=True but cuda is not available')
 		device = torch.device("cuda")
 		model.cuda()
