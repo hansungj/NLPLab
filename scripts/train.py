@@ -390,14 +390,12 @@ def main(args):
 				logging.info('Val stats:')
 				val_stats.print()
 
-					
-
-					'''
-					here implement 
-					2. early stopping - based on evaluation measure accuracy
-					3. saving best model at a check point pth - torch.save()
-					'''
-					NotImplementedError 
+				'''
+				here implement 
+				2. early stopping - based on evaluation measure accuracy
+				3. saving best model at a check point pth - torch.save()
+				'''
+				NotImplementedError 
 	#save 
 	stats_name = '_'.join([args.model_type, args.output_name,'stats.json'])
 	output_path = os.path.join(args.output_dir, stats_name)
