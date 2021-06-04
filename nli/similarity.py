@@ -32,17 +32,17 @@ def distributional(x,y):
 def cosine(x,y):
 	'''
 	cosine tokens' distance
+	#calculate norm in advance, prenormalize for cosine
+	#going thru keys in x and check if they are in y
 	'''
 	dist = 0
-	axes = set(x.keys()) 
-	axes = axes.union(set(y.keys()))
+	axes = set(x[1].keys()) 
+	axes = axes.intersection(set(y[1].keys()))
 	for axis in axes:
 		x_ = x.get(axis, 0)
 		y_ = y.get(axis, 0)
 		dist += x_ * y_
-	x_norm = math.sqrt(sum([t*t for t in x.values()]))
-	y_norm = math.sqrt(sum([t*t for t in y.values()]))
-	dist = dist / (x_norm * y_norm)
+	dist = dist / (x[0] * y[0])
 	return dist
 
 

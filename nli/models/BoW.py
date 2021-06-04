@@ -1,5 +1,6 @@
 import numpy as np
 from collections import defaultdict
+import math
 
 from nli.similarity import levenshtein, distributional, cosine, euclidian
 from nli.metrics import log_likelihood
@@ -57,15 +58,13 @@ class BagOfWordsWrapper(object):
 		return vocab
 	
 	
-	def distributional_represent(self, x):
+	def precalculate_norm(self):
 		token2idx = self.vocab['token2idx']
-		x_represent = np.zeros(len(token2idx))
-		if x in token2idx.keys(): #if there was no such word in our vocab (train data), then we know nothing about its cooccurences and represent it as zero vector
-			if token2idx[x] in self.cooccurence_dict.keys():
-				for idx in self.cooccurence_dict[token2idx[x]]:
-					x_represent[idx-1] = self.cooccurence_dict[token2idx[x]][idx]
-
-		return x_represent
+		for token in self.cooccurence_dict.keys():
+			x = self.cooccurence_dict[token2idx[token]]
+			x_norm = math.sqrt(sum([t*t for t in x.values()]))
+			self.cooccurence_dict[token] = (x_norm, x)
+	
 
 	def build_coocurences(self, corpus, window = 2):
 		token2idx = self.vocab['token2idx']
@@ -143,6 +142,7 @@ class BagOfWords(BagOfWordsWrapper):
 		#print('Words are {} and {}'.format(w1,w2))
 		if self.sim_function in ['cosine', 'euclidean']:
 			token2idx = self.vocab['token2idx']
+			self.cooccurence_dict = self.precalculate_norm()
 			w1 = self.cooccurence_dict[token2idx[w1]]
 			w2 = self.cooccurence_dict[token2idx[w2]]
 
