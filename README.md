@@ -60,15 +60,15 @@ These models use pre-trained embeddings
 
 FFN
 ```
-python scripst/train.py --model_type StaticEmb-mixture
+python scripts/train.py --model_type StaticEmb-mixture
 ```
 
 RNN
 ```
-python scripst/train.py --model_type StaticEmb-RNN
+python scripts/train.py --model_type StaticEmb-RNN
 ```
 
 CNN
 ```
-python scripst/train.py --model_type StaticEmb-CNN
+python scripts/train.py --model_type StaticEmb-CNN
 ```
