@@ -32,6 +32,7 @@ import nli.metrics as metrics
 from nli.tokenization import WhiteSpaceTokenizer
 from nli.embedding import build_embedding_glove
 from nli.models import *
+from nli.models import StaticEmbeddingCNN
 
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
@@ -236,13 +237,12 @@ def main(args):
 
 	# for other models we need to load vocabulary 
 
-	'''
-	1. check here that vocabulary given here is good 
-	2. initialize tokenizer with the vocabulary
-	3. initialize dataloader  - write a dataloader with tokenizer as the argument / write a collate fn that automatically pads 
-	4. write training loop / evaluatation loop 
+	#1. check here that vocabulary given here is good 
+	#2. initialize tokenizer with the vocabulary
+	#3. initialize dataloader  - write a dataloader with tokenizer as the argument / write a collate fn that automatically pads 
+	#4. write training loop / evaluatation loop 
 
-	'''
+	
 	else:
 		vocab = json.load(open(args.vocab, 'r'))
 		if args.tokenizer == 'regular':
@@ -296,6 +296,14 @@ def main(args):
 					 args.se_num_decoder_layers,
 					 args.dropout,
 					 args.sernn_bidirectional)
+					 
+		
+		elif args.model_type == 'StaticEmb-cnn':
+			padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
+			embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx)
+			model = StaticEmbeddingCNN(embedding_matrix,
+					 args.se_hidden_decoder_size,
+					 args.dropout)
 
 		if args.use_cuda:
 			if not torch.cuda.is_available():
@@ -340,7 +348,6 @@ def main(args):
 					premise = premise.to(device)
 					label = label.to(device)
 
-				
 				logits, loss = model(premise, hyp1, hyp2, label)
 				loss.backward()
 
