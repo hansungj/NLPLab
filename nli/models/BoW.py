@@ -59,11 +59,17 @@ class BagOfWordsWrapper(object):
 	
 	
 	def precalculate_norm(self):
-		token2idx = self.vocab['token2idx']
-		for token in self.cooccurence_dict.keys():
-			x = self.cooccurence_dict[token2idx[token]]
-			x_norm = math.sqrt(sum([t*t for t in x.values()]))
-			self.cooccurence_dict[token] = (x_norm, x)
+		#token2idx = self.vocab['token2idx']
+		keys = self.cooccurence_dict.keys()
+		norm_cooccurence_dict = defaultdict(dict)
+		if isinstance(self.cooccurence_dict[0], tuple):
+			return self.cooccurence_dict
+		else:
+			for token in keys:
+				x = self.cooccurence_dict[token]
+				x_norm = math.sqrt(sum([t*t for t in x.values()]))
+				norm_cooccurence_dict[token] = (x_norm, x)
+			return norm_cooccurence_dict
 	
 
 	def build_coocurences(self, corpus, window = 2):
