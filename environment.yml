@@ -8,3 +8,6 @@ dependencies:
   - pytorch
   - numpy
   - scipy
+  - tqdm
+  - gensim
+  - nltk
