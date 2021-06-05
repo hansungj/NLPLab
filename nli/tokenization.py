@@ -24,7 +24,7 @@ class WhiteSpaceTokenizer(object):
 		tokens = tokenize(x, r'\s+')
 		return tokens 
 
-	def convert_tokens_to_id(self, tokens):
+	def convert_tokens_to_ids(self, tokens):
 		unk_token_id = self.vocab['token2idx'][self.unk_token]
 		encoded = [self.vocab['token2idx'].get(token, unk_token_id) for token in tokens]
 		return encoded
