@@ -44,7 +44,7 @@ class AlphaDataset(Dataset):
 				max_samples=None):
 		self.data = open_tsv_file(data_path, dic=True)
 		self.tokenizer = tokenizer
-		self.max_samples = max_samples 
+		self.max_samples = max_samples
 
 	def __len__(self):
 		if self.max_samples is None:
@@ -52,6 +52,7 @@ class AlphaDataset(Dataset):
 		return self.max_samples
 
 	def __getitem__(self, idx):
+
 		items = {}
 		items['hyp1'], items['hyp1_mask'], items['hyp1_reference'] = self.preprocess_hypothesis(self.data['hyp1'][idx])
 		items['hyp2'], items['hyp2_mask'], items['hyp2_reference'] = self.preprocess_hypothesis(self.data['hyp2'][idx])
@@ -60,7 +61,6 @@ class AlphaDataset(Dataset):
 		items['obs'], items['obs_mask'], items['obs_reference'] = self.preprocess_premise(observation)
 		items['label'] = torch.tensor(self.data['label'][idx])
 		items['pad_id'] = self.tokenizer.vocab['token2idx'][self.tokenizer.pad_token]
-		return items
 
 	def preprocess_hypothesis(self, hyp):
 		hyp_tokens = self.tokenizer.tokenize(hyp)
@@ -75,13 +75,11 @@ class AlphaDataset(Dataset):
 		tokens = self.tokenizer.tokenize(obs)
 		tokens.insert(0, self.tokenizer.start_token)
 		tokens.append(self.tokenizer.end_token)
-		tokens_id = self.tokenizer.convert_tokens_to_id(tokens)
+		tokens_id = self.tokenizer.convert_tokens_to_ids(tokens)
 		masks = [1]*len(tokens_id)
 		return torch.tensor(tokens_id), torch.tensor(masks), obs
 
-def alpha_collate_fn(batch):
-
-	def merge(sequences, pad_id):
+def merge(sequences, pad_id):
 		lengths = [len(l) for l in sequences]
 		max_length = max(lengths)
 
@@ -92,6 +90,7 @@ def alpha_collate_fn(batch):
 
 		return padded_batch, torch.LongTensor(lengths)
 
+def alpha_collate_fn_base(batch):
 	item={}
 	for key in batch[0].keys():
 		item[key] = [d[key] for d in batch] # [item_dic, item_idc ]
@@ -124,10 +123,75 @@ def alpha_collate_fn(batch):
 
 	return d
 
-def load_dataloader(dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0):
+class AlphaDatasetTransformer(Dataset):
+
+	'''
+	prepares by just catenating everything
+	'''
+	def __init__(self,
+				data_path,
+				tokenizer, 
+				max_samples=None):
+		self.data = open_tsv_file(data_path, dic=True)
+		self.tokenizer = tokenizer
+		self.max_samples = max_samples
+
+	def __len__(self):
+		if self.max_samples is None:
+			return len(self.data['obs1'])
+		return self.max_samples
+
+	def __getitem__(self, idx):
+		datapoint = [self.data['obs1'][idx], self.data['obs2'][idx],self.data['hyp1'][idx],self.data['hyp2'][idx]]
+		datapoint = (' ' + self.tokenizer.sep_token + ' ').join(datapoint) # sentence </s> sentence 
+		tokens = self.tokenizer.tokenize(datapoint)
+		tokens.insert(0, self.tokenizer.cls_token)
+		tokens_id = self.tokenizer.convert_tokens_to_ids(tokens)
+		masks = [1]*len(tokens_id)
+
+		item = {}
+		item['point'] = torch.tensor(tokens_id)
+		item['masks'] = torch.tensor(masks)
+		item['reference'] = datapoint
+		item['label'] = torch.tensor(self.data['label'][idx])
+		item['pad_id'] = self.tokenizer.pad_token_id
+
+		return item
+
+def alpha_collate_fn_transformer(batch):
+	item={}
+	for key in batch[0].keys():
+		item[key] = [d[key] for d in batch] # [item_dic, item_idc ]
+
+	pad_id = item['pad_id'][0]
+	point, point_length = merge(item['point'], pad_id)
+	masks, _ = merge(item['masks'], pad_id)
+	label = torch.stack(item['label']).float()
+
+	d = {}
+
+	d['point'] = point
+	d['point_length'] = point_length
+	d['masks'] = masks
+	d['reference'] = item['reference']
+	d['label'] = label
+	return d
+
+
+
+def load_dataloader_base(dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0):
 	dataloader = DataLoader(dataset, 
 		batch_size, 
-		collate_fn = alpha_collate_fn, 
+		collate_fn = alpha_collate_fn_base, 
+		shuffle=shuffle, 
+		drop_last=drop_last,
+		num_workers=num_workers )
+	return dataloader
+
+def load_dataloader_transformer(dataset, batch_size ,shuffle=True, drop_last = True, num_workers=0):
+	dataloader = DataLoader(dataset, 
+		batch_size, 
+		collate_fn = alpha_collate_fn_transformer, 
 		shuffle=shuffle, 
 		drop_last=drop_last,
 		num_workers=num_workers )
