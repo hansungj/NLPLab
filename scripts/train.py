@@ -26,13 +26,15 @@ import torch.nn as nn
 #pip install transformers
 
 import nli.utils as utils 
-from nli.data import AlphaDatasetBaseline, AlphaDataset, load_dataloader
+from nli.data import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, load_dataloader_base, load_dataloader_transformer
 import nli.preprocess as preprocess
 import nli.metrics as metrics
 from nli.tokenization import WhiteSpaceTokenizer
 from nli.embedding import build_embedding_glove
 from nli.models import *
 from nli.models import StaticEmbeddingCNN
+
+from transformers import BertTokenizer
 
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
@@ -66,7 +68,7 @@ parser.add_argument('--num_workers', default=0, type=int)
 parser.add_argument('--shuffle', default=True, type=bool)
 parser.add_argument('--num_epochs', default =100, type=int, help = 'Number of training epochs')
 parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples per epoch')
-parser.add_argument('--evaluate', default=True, type=bool, help='Decide to evaluate on validation set')
+parser.add_argument('--evaluate', default=False, type=bool, help='Decide to evaluate on validation set')
 parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evaluation measure') # put multiple eval measures separated by ','
 
 #for testing 
@@ -126,6 +128,8 @@ parser.add_argument('--sem_pooling', default='sum', help='choose from sum/produc
 #model -static embedding RNN specific
 parser.add_argument('--sernn_bidirectional', default=False, type=bool, help='bidirectional for encoder or not') 
 
+#Pretrained transformer models 
+parser.add_argument('--pretrained_name', default='bert-base-uncased', type=str, help='can be used to initialize a pretrained model from huggingface')
 #directory for data/train/val
 
 def main(args):
@@ -235,15 +239,30 @@ def main(args):
 			for eval_name, eval_history in val_stats.keeper.items():
 				logger.info('Validation {} - {}'.format( eval_name, eval_history))
 
-	# for other models we need to load vocabulary 
+	elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
 
-	#1. check here that vocabulary given here is good 
-	#2. initialize tokenizer with the vocabulary
-	#3. initialize dataloader  - write a dataloader with tokenizer as the argument / write a collate fn that automatically pads 
-	#4. write training loop / evaluatation loop 
+		tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
+
+		#initialize dataloader
+		train_dataset = AlphaDatasetTransformer(args.train_tsv, tokenizer, args.max_samples_per_epoch)
+		train_loader=load_dataloader_transformer(train_dataset, args.batch_size, shuffle=args.shuffle, drop_last = True, num_workers = args.num_workers)
+		stats = metrics.MetricKeeper(args.eval_measure.split(','))
+
+		#initialize val-dataloader
+		if args.evaluate:
+			val_dataset = AlphaDatasetTransformer(args.val_tsv, tokenizer, args.max_samples_per_epoch)
+			val_loader=load_dataloader_transformer(val_dataset, args.batch_size, shuffle=args.shuffle, drop_last = False, num_workers = args.num_workers)
+			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+
+		#load models
+		if args.model_type == 'pretrained-transformers-cls':
+			model = PretrainedTransformerCLS(args.pretrained_name)
+
+		elif args.model_type == 'pretrained-transformers-pooling':
+			model = PretrainedTransformerCLS(args.pretrained_name)
 
 	
-	else:
+	elif args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
 		vocab = json.load(open(args.vocab, 'r'))
 		if args.tokenizer == 'regular':
 			#sanity check
@@ -253,25 +272,15 @@ def main(args):
 			assert(vocab['pad_token'] is not None)
 			tokenizer = WhiteSpaceTokenizer(vocab)
 
-		'''
-		elif ..
-		here we will further implement initializing  
-
-		1. word piece tokenizer
-
-		2. pretrained tokenizer from hugging face
-
-		'''
-
 		#initialize dataloader
 		train_dataset = AlphaDataset(args.train_tsv, tokenizer, args.max_samples_per_epoch)
-		train_loader=load_dataloader(train_dataset, args.batch_size, shuffle=args.shuffle, drop_last = True, num_workers = args.num_workers)
+		train_loader=load_dataloader_base(train_dataset, args.batch_size, shuffle=args.shuffle, drop_last = True, num_workers = args.num_workers)
 		stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 		#initialize val-dataloader
 		if args.evaluate:
 			val_dataset = AlphaDataset(args.val_tsv, tokenizer, args.max_samples_per_epoch)
-			val_loader=load_dataloader(val_dataset, args.batch_size, shuffle=args.shuffle, drop_last = False, num_workers = args.num_workers)
+			val_loader=load_dataloader_base(val_dataset, args.batch_size, shuffle=args.shuffle, drop_last = False, num_workers = args.num_workers)
 			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 		#initialize model 
@@ -304,6 +313,9 @@ def main(args):
 			model = StaticEmbeddingCNN(embedding_matrix,
 					 args.se_hidden_decoder_size,
 					 args.dropout)
+
+
+	if args.model_type != 'BoW':
 
 		if args.use_cuda:
 			if not torch.cuda.is_available():
@@ -341,14 +353,26 @@ def main(args):
 			model.train()
 			model.zero_grad()
 			for step, batch in enumerate(train_loader):
-				hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
-				if args.use_cuda:
-					hyp1 = hyp1.to(device)
-					hyp2 = hyp2.to(device)
-					premise = premise.to(device)
-					label = label.to(device)
 
-				logits, loss = model(premise, hyp1, hyp2, label)
+				if args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
+					hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
+					if args.use_cuda:
+						hyp1 = hyp1.to(device)
+						hyp2 = hyp2.to(device)
+						premise = premise.to(device)
+						label = label.to(device)
+
+					logits, loss = model(premise, hyp1, hyp2, label)
+
+				elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
+					point, masks, label = batch['point'], batch['masks'], batch['label']		
+					if args.use_cuda:
+						point = point.to(device)
+						masks = masks.to(device)
+						label = label.to(device)
+
+					logits, loss = model(point, label)
+
 				loss.backward()
 
 				if args.grad_norm_clip:
@@ -367,6 +391,9 @@ def main(args):
 				labels.extend(label.tolist())
 				pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
 
+				print(labels)
+				print(pred)
+
 			#update keepr for log liklihood
 			stats.update('loglikelihood',train_loss)
 			stats.eval(labels,pred)
@@ -381,18 +408,27 @@ def main(args):
 					pred = []
 					total_loss = 0
 					for step, batch in enumerate(val_loader):
-						hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']
+						if args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
+							hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
+							if args.use_cuda:
+								hyp1 = hyp1.to(device)
+								hyp2 = hyp2.to(device)
+								premise = premise.to(device)
+								label = label.to(device)
+
+							logits, loss = model(premise, hyp1, hyp2, label)
+
+						elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
+							point, masks, label = batch['point'], batch['masks'], batch['label']		
+							if args.use_cuda:
+								point = point.to(device)
+								masks = masks.to(device)
+								label = label.to(device)
 
 
-
-						if args.use_cuda:
-							hyp1 = hyp1.to(device)
-							hyp2 = hyp2.to(device)
-							premise = premise.to(device)
-							label = label.to(device)
+							logits, loss = model(point, label)
 
 						#update keepr for log liklihood
-						logits, loss = model(premise, hyp1, hyp2, label)
 						total_loss += loss.mean().item()
 
 						labels.extend(label.tolist())
