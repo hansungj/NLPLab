@@ -365,13 +365,14 @@ def main(args):
 					logits, loss = model(premise, hyp1, hyp2, label)
 
 				elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
-					point, masks, label = batch['point'], batch['masks'], batch['label']		
+					input_ids, segment_ids,  masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
 					if args.use_cuda:
-						point = point.to(device)
+						input_ids = input_ids.to(device)
+						segment_ids = segment_ids.to(device)
 						masks = masks.to(device)
 						label = label.to(device)
-
-					logits, loss = model(point, label)
+						
+					logits, loss = model(input_ids, segment_ids, masks, label)
 
 				loss.backward()
 
@@ -417,14 +418,14 @@ def main(args):
 							logits, loss = model(premise, hyp1, hyp2, label)
 
 						elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
-							point, masks, label = batch['point'], batch['masks'], batch['label']		
+							input_ids, segment_ids, masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
 							if args.use_cuda:
-								point = point.to(device)
+								input_ids = input_ids.to(device)
+								segment_ids = segment_ids.to(device)
 								masks = masks.to(device)
 								label = label.to(device)
 
-
-							logits, loss = model(point, label)
+							logits, loss = model(input_ids, segment_ids, masks, label)
 
 						#update keepr for log liklihood
 						total_loss += loss.mean().item()
