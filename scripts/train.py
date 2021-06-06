@@ -391,8 +391,6 @@ def main(args):
 				labels.extend(label.tolist())
 				pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
 
-				print(labels)
-				print(pred)
 
 			#update keepr for log liklihood
 			stats.update('loglikelihood',train_loss)
