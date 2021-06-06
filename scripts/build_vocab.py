@@ -16,7 +16,6 @@ import pickle
 import time
 import json
 
-
 from nli.preprocess import token_to_idx, idx_to_token, frequency_count
 from nli.utils import open_tsv_file
 
