@@ -44,8 +44,9 @@ parser.add_argument('--data_dir', default='data', type=str)
 parser.add_argument('--vocab', default='data/vocab.json', type=str)
 
 #directory for data/train/val 
-parser.add_argument('--train_tsv', default='data/alphanli/tsv/train.tsv', type=str)
-parser.add_argument('--val_tsv', default='data/alphanli/tsv/dev.tsv', type=str)
+parser.add_argument('--train_tsv', default='data/alphanli/tsv/train_split.tsv', type=str)
+parser.add_argument('--val_tsv', default='data/alphanli/tsv/dev_split.tsv', type=str)
+parser.add_argument('--test_tsv', default='data/alphanli/tsv/dev.tsv', type=str)
 
 #directory for data/train/val - but questions only tokenized
 # parser.add_argument('--train_pickle', default='train.pickle', type=str)
@@ -108,11 +109,12 @@ parser.add_argument('--beta_1', default=0.99, type=float, help='beta1 for first 
 parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for second moment')
 parser.add_argument('--weight_decay', default=0, type=float)
 parser.add_argument('--eps', default=1e-8, type=float)
-parser.add_argument('--scheduler', default=None, help='')
+parser.add_argument('--scheduler', default=None, type =bool, help='')
 parser.add_argument('--num_warming_steps', default=0.1, help='number of warming steps for the scheduler - between 0 and 1')
 parser.add_argument('--dropout', default=0.5, type=float, help='')
 parser.add_argument('--grad_norm_clip', default=None, type=float, help='clip the norm')
 parser.add_argument('--grad_accumulation_steps', default=None, type=int, help='number of steps to accumulate gradient')
+parser.add_argument('--early_stopping_patience', default=10,  type=int, help='patience for early stopping')
 
 #model -static embedding  
 parser.add_argument('--glove_model', default='glove-wiki-gigaword-50', type=str, help='choose from fasttext-wiki-news-subwords-300, conceptnet-numberbatch-17-06-300, word2vec-ruscorpora-300, word2vec-google-news-300, glove-wiki-gigaword-50, glove-wiki-gigaword-100, glove-wiki-gigaword-200, glove-wiki-gigaword-300, glove-twitter-25, glove-twitter-50, glove-twitter-100, glove-twitter-200') 
@@ -143,6 +145,16 @@ def main(args):
 	logger.info(args.train_tsv)
 	logger.info('DEV DATA PATH:')
 	logger.info(args.val_tsv)
+	logger.info('TEST DATA PATH:')
+	logger.info(args.test_tsv)
+
+	# make output directory
+	output_dir = os.path.join(args.output_dir, '{}_{}'.format('checkpoint', args.model_type))
+	if not os.path.exists(output_dir):
+		os.makedirs(output_dir)
+
+	logger.info('OUTPUT DATA PATH:')
+	logger.info(output_dir)
 
 	if  args.model_type == 'BoW':
 		logger.info('BASELINE CLASSIFIER: {}'.format(args.bow_classifier))
@@ -185,14 +197,11 @@ def main(args):
 
 		train_dataset = AlphaDatasetBaseline(args.train_tsv, args.max_samples_per_epoch)
 		logger.info('Train Dataset has %d samples' % len(train_dataset))
-
-		#initialize a class to keep track of model progress
 		stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
-		if args.evaluate:
-			val_dataset = AlphaDatasetBaseline(args.val_tsv)
-			logger.info('Validation Dataset has %d samples' % len(val_dataset))
-			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+		test_dataset = AlphaDatasetBaseline(args.val_tsv)
+		logger.info('Test Dataset has %d samples' % len(test_dataset))
+		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 		# for baseline 
 		model_kwargs = {
@@ -225,19 +234,19 @@ def main(args):
 		for eval_name, eval_history in stats.keeper.items():
 			logger.info('Train {} - {}'.format( eval_name, eval_history))
 
-		#evaluate on validaiton set 
-		if args.evaluate:
-			pred = model.transform(val_dataset)
+		#evaluate on test set 
+		pred = model.transform(test_dataset)
 
-			#convert to predictions
-			y_pred = np.argmax(pred,axis=-1)
+		#convert to predictions
+		y_pred = np.argmax(pred,axis=-1)
 
-			y = np.array(val_dataset.dataset['label'])
-			val_stats.eval(y, y_pred)
+		y = np.array(test_dataset.dataset['label'])
+		test_stats.eval(y, y_pred)
 
-			#print to log
-			for eval_name, eval_history in val_stats.keeper.items():
-				logger.info('Validation {} - {}'.format( eval_name, eval_history))
+		#save prediction 
+		with open(os.path.join(output_dir, 'predictions.txt'),'w') as f:
+			for p in y_pred:
+				f.write(str(p) + '\n')
 
 	elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
 
@@ -245,14 +254,26 @@ def main(args):
 
 		#initialize dataloader
 		train_dataset = AlphaDatasetTransformer(args.train_tsv, tokenizer, args.max_samples_per_epoch)
-		train_loader=load_dataloader_transformer(train_dataset, args.batch_size, shuffle=args.shuffle, drop_last = True, num_workers = args.num_workers)
+		test_dataset = AlphaDatasetTransformer(args.test_tsv, tokenizer)
+
 		stats = metrics.MetricKeeper(args.eval_measure.split(','))
+		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 		#initialize val-dataloader
+		val_dataset = None
 		if args.evaluate:
 			val_dataset = AlphaDatasetTransformer(args.val_tsv, tokenizer, args.max_samples_per_epoch)
-			val_loader=load_dataloader_transformer(val_dataset, args.batch_size, shuffle=args.shuffle, drop_last = False, num_workers = args.num_workers)
 			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+
+		
+		train_loader, test_loader, val_loader =load_dataloader_transformer(
+											train_dataset, 
+											test_dataset,
+											val_dataset,
+											args.batch_size, 
+											shuffle=args.shuffle, 
+											drop_last = True, 
+											num_workers = args.num_workers)
 
 		#load models
 		if args.model_type == 'pretrained-transformers-cls':
@@ -274,14 +295,26 @@ def main(args):
 
 		#initialize dataloader
 		train_dataset = AlphaDataset(args.train_tsv, tokenizer, args.max_samples_per_epoch)
-		train_loader=load_dataloader_base(train_dataset, args.batch_size, shuffle=args.shuffle, drop_last = True, num_workers = args.num_workers)
+		test_dataset = AlphaDatasetTransformer(args.test_tsv, tokenizer)
+		
+		#initialize test metric
 		stats = metrics.MetricKeeper(args.eval_measure.split(','))
+		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 		#initialize val-dataloader
+		val_dataset = None
 		if args.evaluate:
 			val_dataset = AlphaDataset(args.val_tsv, tokenizer, args.max_samples_per_epoch)
-			val_loader=load_dataloader_base(val_dataset, args.batch_size, shuffle=args.shuffle, drop_last = False, num_workers = args.num_workers)
 			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+
+		train_loader, test_loader, val_loader =load_dataloader_base(
+								train_dataset, 
+								test_dataset,
+								val_dataset,
+								args.batch_size, 
+								shuffle=args.shuffle,
+								drop_last = True, 
+								num_workers = args.num_workers)
 
 		#initialize model 
 		if  args.model_type == 'StaticEmb-mixture':
@@ -344,11 +377,11 @@ def main(args):
 			pass
 
 		'''
-		we might need to write a separate training loop for pretrained BERT models but we will leave it like this for now
-
-		this training loop was written for StaticEmb models 
+		TRAINING 
 		'''
+
 		val_loss = 1000 # 1000 for early stop
+		earlyStop = 0
 		for epoch in tqdm(range(args.num_epochs), desc='epoch'):
 			labels = []
 			pred = []
@@ -400,8 +433,15 @@ def main(args):
 			stats.update('loglikelihood',train_loss)
 			stats.eval(labels,pred)
 			#print for status update
-			logging.info('Train stats:')
+			logging.info('\nTrain stats:')
 			stats.print()
+
+			'''
+
+			VALIDATION 
+
+
+			'''
 
 			if args.evaluate:
 				model.eval()
@@ -439,26 +479,93 @@ def main(args):
 					val_stats.update('loglikelihood',total_loss)
 					val_stats.eval(labels,pred)
 
-					logging.info('Val stats:')
+					logging.info('\nVal stats:')
 					val_stats.print()
 
-					'''
-					here implement 
-					2. early stopping - based on evaluation measure accuracy
-					3. saving best model at a check point pth - torch.save()
-					'''
-					NotImplementedError 
-	#save 
-	stats_name = '_'.join([args.model_type, args.output_name,'stats.json'])
-	output_path = os.path.join(args.output_dir, stats_name)
+				#early stopping
+				if total_loss < val_loss:
+					earlyStop = 0
+					torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
 
+					val_loss = total_loss
+					continue 
+
+				earlyStop += 1
+				if args.early_stopping_patience == earlyStop:
+					logging.info('Early stopping criterion met - terminating')
+					break
+
+				logging.info('Early stopping patience {}'.format(earlyStop))
+
+		'''
+
+		TEST 
+
+
+		'''
+		logging.info('Testing...')
+		for step, batch in enumerate(test_loader):
+			model.eval()
+
+			#load best model
+			model_checkpoint_path = os.path.join(output_dir, 'checkpoint_'+ args.model_type)
+			model.load_state_dict(torch.load(model_checkpoint_path))
+			
+			if args.use_cuda:
+				model.cuda()
+
+			model.eval()
+			test_pred = []
+			test_labels = []
+			test_loss = 0.
+			with torch.no_grad():
+				if args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
+					hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
+					if args.use_cuda:
+						hyp1 = hyp1.to(device)
+						hyp2 = hyp2.to(device)
+						premise = premise.to(device)
+						label = label.to(device)
+
+					logits, loss = model(premise, hyp1, hyp2, label)
+
+				elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
+					input_ids, segment_ids,  masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
+					if args.use_cuda:
+						input_ids = input_ids.to(device)
+						segment_ids = segment_ids.to(device)
+						masks = masks.to(device)
+						label = label.to(device)
+
+					logits, loss = model(input_ids, segment_ids, masks, label)
+
+			#update keepr for log liklihood
+			test_loss += loss.mean().item()
+			
+			test_pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+			test_labels.extend(label.tolist())
+
+		test_stats.eval(test_labels,test_pred)
+		test_stats.update('loglikelihood',test_loss)
+
+		#save prediction 
+		with open(os.path.join(output_dir, 'predictions.txt'),'w') as f:
+			for p in test_pred:
+				f.write(str(p) + '\n')
+
+		#save 
+
+	'''
+
+	SAVE STATS
+	'''
 	checkpoint = {
 	'stats': stats.keeper,
 	'val_stats': val_stats.keeper if args.evaluate else None,
+	'test_stats': test_stats.keeper,
 	'args': args.__dict__
 	}
-
-	with open(output_path, 'w') as f:
+	with open(os.path.join(output_dir, 'stats.json'), 'w') as f:
 		json.dump(checkpoint, f, indent=4)
 
 def prepare_model_parameters_weight_decay(named_parameters):
@@ -472,9 +579,6 @@ def prepare_model_parameters_weight_decay(named_parameters):
 	return grouped_params
 
 def train(model, dataloader):
-	return None
-
-def evaluate(model, dataloader):
 	return None
 
 if __name__ == '__main__':
