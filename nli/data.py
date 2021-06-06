@@ -66,7 +66,7 @@ class AlphaDataset(Dataset):
 		hyp_tokens = self.tokenizer.tokenize(hyp)
 		hyp_tokens.insert(0, self.tokenizer.start_token)
 		hyp_tokens.append(self.tokenizer.end_token)
-		hyp_ids = self.tokenizer.convert_tokens_to_id(hyp_tokens)
+		hyp_ids = self.tokenizer.convert_tokens_to_ids(hyp_tokens)
 		masks = [1]*len(hyp_ids)
 		return torch.tensor(hyp_ids), torch.tensor(masks), hyp
 
