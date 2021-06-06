@@ -192,20 +192,53 @@ def alpha_collate_fn_transformer(batch):
 
 
 
-def load_dataloader_base(dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0):
+def load_dataloader_base(dataset, test_dataset, val_dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0):
 	dataloader = DataLoader(dataset, 
 		batch_size, 
 		collate_fn = alpha_collate_fn_base, 
 		shuffle=shuffle, 
 		drop_last=drop_last,
 		num_workers=num_workers )
-	return dataloader
 
-def load_dataloader_transformer(dataset, batch_size ,shuffle=True, drop_last = True, num_workers=0):
+	test_dataloader = DataLoader(test_dataset, 
+		batch_size, 
+		collate_fn = alpha_collate_fn_base, 
+		shuffle=False, 
+		drop_last=False,
+		num_workers=num_workers )
+
+	val_dataloader = None
+	if val_dataset is not None:
+		val_dataloader = DataLoader(val_dataset, 
+			batch_size, 
+			collate_fn = alpha_collate_fn_base, 
+			shuffle=shuffle, 
+			drop_last=False,
+			num_workers=num_workers )
+	return dataloader, test_dataloader, val_dataloader
+
+def load_dataloader_transformer(dataset, test_dataset, val_dataset, batch_size ,shuffle=True, drop_last = True, num_workers=0):
 	dataloader = DataLoader(dataset, 
 		batch_size, 
 		collate_fn = alpha_collate_fn_transformer, 
 		shuffle=shuffle, 
 		drop_last=drop_last,
 		num_workers=num_workers )
-	return dataloader
+
+	test_dataloader = DataLoader(test_dataset, 
+		batch_size, 
+		collate_fn = alpha_collate_fn_transformer, 
+		shuffle=False, 
+		drop_last=False,
+		num_workers=num_workers )
+
+	val_dataloader = None
+	if val_dataset is not None:
+		val_dataloader = DataLoader(val_dataset, 
+			batch_size, 
+			collate_fn = alpha_collate_fn_transformer, 
+			shuffle=shuffle, 
+			drop_last=False,
+			num_workers=num_workers)
+
+	return dataloader, test_dataloader, val_dataloader
