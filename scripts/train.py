@@ -114,7 +114,7 @@ parser.add_argument('--num_warming_steps', default=0.1, help='number of warming 
 parser.add_argument('--dropout', default=0.5, type=float, help='')
 parser.add_argument('--grad_norm_clip', default=None, type=float, help='clip the norm')
 parser.add_argument('--grad_accumulation_steps', default=None, type=int, help='number of steps to accumulate gradient')
-parser.add_argument('--early_stopping_patience', default=10,  type=int, help='patience for early stopping')
+parser.add_argument('--early_stopping', default=10,  type=int, help='patience for early stopping - if 0 no early stopping used')
 
 #model -static embedding  
 parser.add_argument('--glove_model', default='glove-wiki-gigaword-50', type=str, help='choose from fasttext-wiki-news-subwords-300, conceptnet-numberbatch-17-06-300, word2vec-ruscorpora-300, word2vec-google-news-300, glove-wiki-gigaword-50, glove-wiki-gigaword-100, glove-wiki-gigaword-200, glove-wiki-gigaword-300, glove-twitter-25, glove-twitter-50, glove-twitter-100, glove-twitter-200') 
@@ -479,20 +479,24 @@ def main(args):
 					val_stats.print()
 
 				#early stopping
-				if total_loss < val_loss:
-					earlyStop = 0
-					torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
+				if args.early_stopping:
+					if total_loss < val_loss:
+						earlyStop = 0
+						torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
 
-					val_loss = total_loss
-					continue 
+						val_loss = total_loss
+						continue 
 
-				earlyStop += 1
-				if args.early_stopping_patience == earlyStop:
-					logging.info('Early stopping criterion met - terminating')
-					break
+					earlyStop += 1
+					if args.early_stopping_patience == earlyStop:
+						logging.info('Early stopping criterion met - terminating')
+						break
 
 				logging.info('Early stopping patience {}'.format(earlyStop))
 
+			# if we dont early stop just save the last model 
+			if not args.early_stopping:
+				torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
 		'''
 
 		TEST 
