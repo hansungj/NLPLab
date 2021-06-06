@@ -14,6 +14,12 @@ def sigmoid(x):
 	return  1 / (1 + np.exp(-x))
 
 class BagOfWordsWrapper(object):
+	'''
+	Wrapper for Bag of words - holds 
+
+	1. alignment costs functions 
+	2. lexical weighting functions 
+	'''
 
 	def idf(self, corpus):
 		'''
@@ -96,8 +102,7 @@ class BagOfWordsWrapper(object):
 							cooccurence_dict[cur_token][neighbor_token] += 1
 						else:
 							cooccurence_dict[cur_token][neighbor_token] = 1
-		#print(len(cooccurence_dict))			
-		#cooccurence_dict['UNK']
+
 		return cooccurence_dict
 
 class BagOfWords(BagOfWordsWrapper):
@@ -169,7 +174,7 @@ class BagOfWords(BagOfWordsWrapper):
 				w2 = token2idx[w2]
 				sim = self.sim(w1, w2)
 			else:
-				sim = 0 # if the token was not seen in the training data, then it never cooccured with anything in the training data
+				sim = 0 
 
 			try:
 				cost = -1*np.log(sim+1)
@@ -188,9 +193,10 @@ class BagOfWords(BagOfWordsWrapper):
 	def total_cost(self, hypothesis, premise):
 
 		cost = 0
-		for h in hypothesis:
-			min_cost = min(self.alignment_cost(h,p) if self.weight is None  
-							else self.weight.get(h,self.weight_avg)*self.alignment_cost(h,p)for p in premise)
+		for i, h in enumerate(hypothesis): 
+			alignment_costs = [self.alignment_cost(h,p) if self.weight is None  
+							else self.weight.get(h,self.weight_avg)*self.alignment_cost(h,p) for p in premise]
+			min_cost = min(alignment_costs)
 			cost += min(self.max_cost, min_cost)
 
 		return cost
@@ -289,6 +295,9 @@ class BagOfWords(BagOfWordsWrapper):
 
 
 class GDClassifier(object):
+	'''
+	Wrapper for gradient descent based classifiers 
+	'''
 
 	def train(self, x, y):
 		N = len(x)
@@ -526,26 +535,11 @@ if __name__ == '__main__':
 				 #reg = True,
 				 #reg_lambda = 0.01)
 
-	#classifier = LogisticRegression(num_features=1,
-				#lr=0.01,
-				#bias = True,
-				#regularization = True,
-				#lmda = 0.1)
-
 	classifier = Perceptron(num_features=1,
 				lr=1,
 				bias = True)
 
-	model = BagOfWords({},
-				 classifier,
-				 sim_function='levenshtein',
-				 weight_function=None,
-				 max_cost = 100,
-				 bidirectional = False)
+	model = BagOfWords(None,
+				 sim_function='levenshtein')
 
-
-	for i in range(10):
-		model.train([(p, h1, h2, label),(p, h1, h2, label)])
-
-	print(model.coded)
-	print(model.labels)
+	model.total_cost('Chad was waiting for his car to be washed'.split(' '), 'Chad went to get the wheel alignment measured on his car'.split(' ') )
