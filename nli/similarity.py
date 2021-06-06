@@ -36,8 +36,18 @@ def cosine(x,y):
 	#going thru keys in x and check if they are in y
 	'''
 	dist = 0
-	axes = set(x[1].keys()) 
-	axes = axes.intersection(set(y[1].keys()))
+	try:
+		axes = set(x[1].keys())
+	except KeyError:
+		return 0
+	except IndexError:
+		return 0
+	try:
+		axes = axes.intersection(set(y[1].keys()))
+	except KeyError:
+		return 0
+	except IndexError:
+		return 0
 	for axis in axes:
 		x_ = x[1].get(axis, 0)
 		y_ = y[1].get(axis, 0)
