@@ -24,9 +24,9 @@ class PretrainedTransformerCLS(nn.Module):
 		self.loss_fn = nn.BCEWithLogitsLoss()
 
 
-	def forward(self, x,y=None):
+	def forward(self, input_ids, segment_ids, masks,y=None):
 
-		output = self.model(x)
+		output = self.model(input_ids = input_ids, attention_mask = masks, token_type_ids = segment_ids)
 		x = output.last_hidden_state[:,0,:]
 		logits = self.classifier(x)
 
