@@ -47,7 +47,7 @@ class StaticEmbeddingMixture(nn.Module):
 			self.encoder_hyp.append(Head(hidden_encoder_size, hidden_encoder_size, nn.ReLU(), dropout))
 
 
-		self.decoder = nn.ModuleList([Head(hidden_encoder_size*4, hidden_decoder_size, nn.ReLU(), dropout)])
+		self.decoder = nn.ModuleList([Head(hidden_encoder_size*5, hidden_decoder_size, nn.ReLU(), dropout)])
 		for _ in range(num_decoder_layers-2):
 			self.decoder.append(Head(hidden_decoder_size, hidden_decoder_size, nn.ReLU(), dropout))
 		self.decoder.append(Head(hidden_decoder_size, 1, nn.Identity(), dropout))
@@ -84,7 +84,7 @@ class StaticEmbeddingMixture(nn.Module):
 
 		#concatenate [p - h1, p - h2, p , h1, h2]
 		#or [p*h1, p*h2, torch.abs(p-h1), torch.abs(p-h2)]
-		logit = torch.cat([p*h1, p-h1, p*h2, p-h2],dim=-1)
+		logit = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
 
 		for decoder in self.decoder:
 			logit = decoder(logit)
@@ -122,7 +122,7 @@ class StaticEmbeddingRNN(nn.Module):
 		if bidirectional:
 			hidden_encoder_size *= 2
 
-		self.decoder = nn.ModuleList([Head(hidden_encoder_size*4, hidden_decoder_size, nn.ReLU(), dropout)])
+		self.decoder = nn.ModuleList([Head(hidden_encoder_size*5, hidden_decoder_size, nn.ReLU(), dropout)])
 		for _ in range(num_decoder_layers-2):
 			self.decoder.append(Head(hidden_decoder_size, hidden_decoder_size, nn.ReLU(),dropout))
 		self.decoder.append(Head(hidden_decoder_size, 1, nn.Identity(), dropout))
@@ -159,11 +159,9 @@ class StaticEmbeddingRNN(nn.Module):
 			h2 = h2[:,-1,:]
 
 		#concatenate (p - h1, p - h2, p , h1, h2)
-		#logit = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
+		logit = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
 
-		logit = torch.cat([p*h1, p-h1, p*h2, p-h2],dim=-1)
-		
-
+		#logit = torch.cat([p*h1, p-h1, p*h2, p-h2],dim=-1)
 
 		for decoder in self.decoder:
 			logit = decoder(logit)
