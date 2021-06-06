@@ -199,7 +199,7 @@ def main(args):
 		logger.info('Train Dataset has %d samples' % len(train_dataset))
 		stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
-		test_dataset = AlphaDatasetBaseline(args.val_tsv)
+		test_dataset = AlphaDatasetBaseline(args.test_tsv)
 		logger.info('Test Dataset has %d samples' % len(test_dataset))
 		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
@@ -216,7 +216,7 @@ def main(args):
 		logger.info('FITTING')
 		starttime = time.time()
 		
-		pred, L = model.fit_transform( train_dataset, num_epochs=args.num_epochs, ll=True)
+		pred, L = model.fit_transform(train_dataset, num_epochs=args.num_epochs, ll=True)
 
 		logger.info('Fitting and Transforming: BoW took {:.2f}s - {:.5f}s per data point'.format(starttime - time.time(), 
 			(starttime - time.time()) / len(train_dataset)))
@@ -295,7 +295,7 @@ def main(args):
 
 		#initialize dataloader
 		train_dataset = AlphaDataset(args.train_tsv, tokenizer, args.max_samples_per_epoch)
-		test_dataset = AlphaDatasetTransformer(args.test_tsv, tokenizer)
+		test_dataset = AlphaDataset(args.test_tsv, tokenizer)
 		
 		#initialize test metric
 		stats = metrics.MetricKeeper(args.eval_measure.split(','))
@@ -437,12 +437,8 @@ def main(args):
 			stats.print()
 
 			'''
-
 			VALIDATION 
-
-
 			'''
-
 			if args.evaluate:
 				model.eval()
 				with torch.no_grad():
@@ -552,9 +548,7 @@ def main(args):
 		with open(os.path.join(output_dir, 'predictions.txt'),'w') as f:
 			for p in test_pred:
 				f.write(str(p) + '\n')
-
-		#save 
-
+ 
 	'''
 
 	SAVE STATS
