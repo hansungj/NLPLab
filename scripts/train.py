@@ -488,7 +488,7 @@ def main(args):
 						continue 
 
 					earlyStop += 1
-					if args.early_stopping_patience == earlyStop:
+					if args.early_stopping == earlyStop:
 						logging.info('Early stopping criterion met - terminating')
 						break
 
