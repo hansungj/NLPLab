@@ -40,6 +40,7 @@ class BagOfWordsWrapper(object):
 		self.weight = d
 		self.weight_avg = avg
 
+	#creating vocabulary where each token is assigned a unique index 
 	def build_vocabulary(self, corpus):
 		token2idx = defaultdict(int)
 		
@@ -56,20 +57,10 @@ class BagOfWordsWrapper(object):
 		'idx2token': idx2tok
 		}
 		return vocab
-	
-	
-	def precalculate_norm(self):
-		keys = self.cooccurence_dict.keys()
-		norm_cooccurence_dict = defaultdict(tuple)
-		#norm_dict = defaultdict(tuple)
-		for token in keys:
-			x = self.cooccurence_dict[token]
-			x_norm = math.sqrt(sum([t*t for t in x.values()]))
-			norm_cooccurence_dict[token] = (x_norm, x)
-			#norm_cooccurence_dict[token] = x_norm
-		return norm_cooccurence_dict
-	
 
+
+	#compute cooccurences of words in window of 5 (2 to the left and 2 to the right)
+	#store in form of a dictionary: {w1 : {w2 : how many times w1 and w2 cooccured in the window of 5}}
 	def build_coocurences(self, corpus, window = 2):
 		token2idx = self.vocab['token2idx']
 		cooccurence_dict = defaultdict(dict)
@@ -99,6 +90,18 @@ class BagOfWordsWrapper(object):
 		#print(len(cooccurence_dict))			
 		#cooccurence_dict['UNK']
 		return cooccurence_dict
+
+	#for cosine precalculate norm for each word-vector only once
+	def precalculate_norm(self):
+		keys = self.cooccurence_dict.keys()
+		norm_cooccurence_dict = defaultdict(tuple)
+		#norm_dict = defaultdict(tuple)
+		for token in keys:
+			x = self.cooccurence_dict[token]
+			x_norm = math.sqrt(sum([t*t for t in x.values()]))
+			norm_cooccurence_dict[token] = (x_norm, x)
+			#norm_cooccurence_dict[token] = x_norm
+		return norm_cooccurence_dict
 
 class BagOfWords(BagOfWordsWrapper):
 
