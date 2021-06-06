@@ -142,7 +142,7 @@ class AlphaDatasetTransformer(Dataset):
 		return self.max_samples
 
 	def __getitem__(self, idx):
-		observation = ' '.join([self.data['obs1'][idx], self.data['obs2'][idx]])
+		observation = (' ' + self.tokenizer.sep_token + ' ').join([self.data['obs1'][idx], self.data['obs2'][idx]])
 		hypotheses = (' ' + self.tokenizer.sep_token + ' ').join([self.data['hyp1'][idx],self.data['hyp2'][idx]])
 
 		tokens = self.tokenizer.tokenize(observation)
@@ -163,7 +163,7 @@ class AlphaDatasetTransformer(Dataset):
 		item['input_ids'] = torch.tensor(tokens_id)
 		item['segment_ids'] = torch.tensor(segment_ids)
 		item['masks'] = torch.tensor(masks)
-		item['reference'] = observation + '<SEP>' + hypotheses
+		item['reference'] = observation + ' <SEP> ' + hypotheses
 		item['label'] = torch.tensor(self.data['label'][idx])
 		item['pad_id'] = self.tokenizer.pad_token_id
 
