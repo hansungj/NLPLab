@@ -62,6 +62,8 @@ class AlphaDataset(Dataset):
 		items['label'] = torch.tensor(self.data['label'][idx])
 		items['pad_id'] = self.tokenizer.vocab['token2idx'][self.tokenizer.pad_token]
 
+		return items
+
 	def preprocess_hypothesis(self, hyp):
 		hyp_tokens = self.tokenizer.tokenize(hyp)
 		hyp_tokens.insert(0, self.tokenizer.start_token)
@@ -80,15 +82,15 @@ class AlphaDataset(Dataset):
 		return torch.tensor(tokens_id), torch.tensor(masks), obs
 
 def merge(sequences, pad_id):
-		lengths = [len(l) for l in sequences]
-		max_length = max(lengths)
+	lengths = [len(l) for l in sequences]
+	max_length = max(lengths)
 
-		padded_batch = torch.full((len(sequences), max_length), pad_id).long()
-		#pad to max_length
-		for i, seq in enumerate(sequences):
-			padded_batch[i, :len(seq)] = seq
+	padded_batch = torch.full((len(sequences), max_length), pad_id).long()
+	#pad to max_length
+	for i, seq in enumerate(sequences):
+		padded_batch[i, :len(seq)] = seq
 
-		return padded_batch, torch.LongTensor(lengths)
+	return padded_batch, torch.LongTensor(lengths)
 
 def alpha_collate_fn_base(batch):
 	item={}
@@ -124,9 +126,10 @@ def alpha_collate_fn_base(batch):
 	return d
 
 class AlphaDatasetTransformer(Dataset):
-
 	'''
-	prepares by just catenating everything
+
+	prepares by just concatenating everything
+
 	'''
 	def __init__(self,
 				data_path,
@@ -181,7 +184,6 @@ def alpha_collate_fn_transformer(batch):
 	label = torch.stack(item['label']).float()
 
 	d = {}
-
 	d['input_ids'] = input_ids
 	d['segment_ids'] = segment_ids
 	d['input_length'] = input_length
@@ -189,8 +191,6 @@ def alpha_collate_fn_transformer(batch):
 	d['reference'] = item['reference']
 	d['label'] = label
 	return d
-
-
 
 def load_dataloader_base(dataset, test_dataset, val_dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0):
 	dataloader = DataLoader(dataset, 
