@@ -142,17 +142,28 @@ class AlphaDatasetTransformer(Dataset):
 		return self.max_samples
 
 	def __getitem__(self, idx):
-		datapoint = [self.data['obs1'][idx], self.data['obs2'][idx],self.data['hyp1'][idx],self.data['hyp2'][idx]]
-		datapoint = (' ' + self.tokenizer.sep_token + ' ').join(datapoint) # sentence </s> sentence 
-		tokens = self.tokenizer.tokenize(datapoint)
+		observation = ' '.join([self.data['obs1'][idx], self.data['obs2'][idx]])
+		hypotheses = (' ' + self.tokenizer.sep_token + ' ').join([self.data['hyp1'][idx],self.data['hyp2'][idx]])
+
+		tokens = self.tokenizer.tokenize(observation)
 		tokens.insert(0, self.tokenizer.cls_token)
+		tokens.append(self.tokenizer.sep_token)
 		tokens_id = self.tokenizer.convert_tokens_to_ids(tokens)
+
+		segment_ids = [0]*len(tokens_id)
+
+		tokens = self.tokenizer.tokenize(hypotheses)
+		hyp_id = self.tokenizer.convert_tokens_to_ids(tokens)
+
+		segment_ids.extend([1]*len(hyp_id))
+		tokens_id.extend(hyp_id)
 		masks = [1]*len(tokens_id)
 
 		item = {}
-		item['point'] = torch.tensor(tokens_id)
+		item['input_ids'] = torch.tensor(tokens_id)
+		item['segment_ids'] = torch.tensor(segment_ids)
 		item['masks'] = torch.tensor(masks)
-		item['reference'] = datapoint
+		item['reference'] = observation + '<SEP>' + hypotheses
 		item['label'] = torch.tensor(self.data['label'][idx])
 		item['pad_id'] = self.tokenizer.pad_token_id
 
@@ -164,14 +175,16 @@ def alpha_collate_fn_transformer(batch):
 		item[key] = [d[key] for d in batch] # [item_dic, item_idc ]
 
 	pad_id = item['pad_id'][0]
-	point, point_length = merge(item['point'], pad_id)
+	input_ids, input_length = merge(item['input_ids'], pad_id)
+	segment_ids, _ = merge(item['segment_ids'], pad_id)
 	masks, _ = merge(item['masks'], pad_id)
 	label = torch.stack(item['label']).float()
 
 	d = {}
 
-	d['point'] = point
-	d['point_length'] = point_length
+	d['input_ids'] = input_ids
+	d['segment_ids'] = segment_ids
+	d['input_length'] = input_length
 	d['masks'] = masks
 	d['reference'] = item['reference']
 	d['label'] = label
