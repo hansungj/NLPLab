@@ -161,7 +161,7 @@ class StaticEmbeddingRNN(nn.Module):
 		#concatenate (p - h1, p - h2, p , h1, h2)
 		#logit = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
 
-		logit = torch.cat([p*h1, p-h1, p*h2, torch.abs(p-h2)],dim=-1)
+		logit = torch.cat([p*h1, p-h1, p*h2, p-h2],dim=-1)
 		
 
 
