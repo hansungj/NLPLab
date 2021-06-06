@@ -59,17 +59,15 @@ class BagOfWordsWrapper(object):
 	
 	
 	def precalculate_norm(self):
-		#token2idx = self.vocab['token2idx']
 		keys = self.cooccurence_dict.keys()
-		norm_cooccurence_dict = defaultdict(dict)
-		if isinstance(self.cooccurence_dict[0], tuple):
-			return self.cooccurence_dict
-		else:
-			for token in keys:
-				x = self.cooccurence_dict[token]
-				x_norm = math.sqrt(sum([t*t for t in x.values()]))
-				norm_cooccurence_dict[token] = (x_norm, x)
-			return norm_cooccurence_dict
+		norm_cooccurence_dict = defaultdict(tuple)
+		#norm_dict = defaultdict(tuple)
+		for token in keys:
+			x = self.cooccurence_dict[token]
+			x_norm = math.sqrt(sum([t*t for t in x.values()]))
+			norm_cooccurence_dict[token] = (x_norm, x)
+			#norm_cooccurence_dict[token] = x_norm
+		return norm_cooccurence_dict
 	
 
 	def build_coocurences(self, corpus, window = 2):
@@ -109,6 +107,7 @@ class BagOfWords(BagOfWordsWrapper):
 				 sim_function='levenshtein',
 				 weight_function=None,
 				 cooccurence_dict = None,
+				 #norm_dict = None,
 				 max_cost = 100,
 				 bidirectional = False,
 				 lemmatize = False,
@@ -148,7 +147,6 @@ class BagOfWords(BagOfWordsWrapper):
 		#print('Words are {} and {}'.format(w1,w2))
 		if self.sim_function in ['cosine', 'euclidean']:
 			token2idx = self.vocab['token2idx']
-			self.cooccurence_dict = self.precalculate_norm()
 			w1 = self.cooccurence_dict[token2idx[w1]]
 			w2 = self.cooccurence_dict[token2idx[w2]]
 
@@ -225,6 +223,10 @@ class BagOfWords(BagOfWordsWrapper):
 		if self.sim_function in ['distributional', 'cosine', 'euclidean']:
 			self.vocab = self.build_vocabulary(corpus)
 			self.cooccurence_dict = self.build_coocurences(corpus)
+		
+		if self.sim_function in ['cosine', 'euclidean']:
+			self.cooccurence_dict = self.precalculate_norm()
+			#self.norm_dict = self.precalculate_norm()
 
 		if self.weight_function == 'idf':
 			self.idf(corpus)
