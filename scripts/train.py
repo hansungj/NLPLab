@@ -34,7 +34,7 @@ from nli.embedding import build_embedding_glove
 from nli.models import *
 from nli.models import StaticEmbeddingCNN
 
-from transformers import BertTokenizer
+from transformers import BertTokenizer, get_linear_schedule_with_warmup
 
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for secon
 parser.add_argument('--weight_decay', default=0, type=float)
 parser.add_argument('--eps', default=1e-8, type=float)
 parser.add_argument('--scheduler', default=None, help='')
-parser.add_argument('--num_warming_steps', default=None, help='number of warming steps for the scheduler')
+parser.add_argument('--num_warming_steps', default=0.1, help='number of warming steps for the scheduler - between 0 and 1')
 parser.add_argument('--dropout', default=0.5, type=float, help='')
 parser.add_argument('--grad_norm_clip', default=None, type=float, help='clip the norm')
 parser.add_argument('--grad_accumulation_steps', default=None, type=int, help='number of steps to accumulate gradient')
@@ -338,6 +338,9 @@ def main(args):
 
 		#scheduler 
 		if args.scheduler:
+			num_training_steps = int((len(train_loader)//args.batch_size)*args.num_epochs)
+			num_warmup_steps = int(num_training_steps*args.num_warming_steps)
+			scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps,num_training_steps)
 			pass
 
 		'''
@@ -371,7 +374,7 @@ def main(args):
 						segment_ids = segment_ids.to(device)
 						masks = masks.to(device)
 						label = label.to(device)
-						
+
 					logits, loss = model(input_ids, segment_ids, masks, label)
 
 				loss.backward()
