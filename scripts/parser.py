@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 parser = argparse.ArgumentParser()
 
 #directory 
-parser.add_argument('--tsv_path', default='data/alphanli/tsv/dev.tsv', type=str)
+parser.add_argument('--tsv_path', default='data/alphanli/tsv/train.tsv', type=str)
 parser.add_argument('--output_dir', default='data/alphanli/tsv', type=str)
 parser.add_argument('--suffix', default='_split')
 
@@ -27,15 +27,15 @@ def main(args):
 
 	data = open(args.tsv_path, 'r').readlines()
 
-	test, dev = train_test_split(data, test_size = args.split, shuffle=True)
+	train, dev = train_test_split(data, test_size = args.split, shuffle=True)
 
 
-	with open(os.path.join(args.output_dir, 'test' + args.suffix + '.tsv'), 'w') as f:
+	with open(os.path.join(args.output_dir, 'train' + args.suffix + '.tsv'), 'w') as f:
 		for l in train:
 			f.write(l)
 
 	with open(os.path.join(args.output_dir, 'val' + args.suffix + '.tsv'), 'w') as f:
-		for l in train:
+		for l in dev:
 			f.write(l)
 
 if __name__ == '__main__':
