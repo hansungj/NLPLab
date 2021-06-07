@@ -200,7 +200,7 @@ class StaticEmbeddingCNN(nn.Module):
 												])
 		
 		self.decoder = nn.Sequential(
-							nn.Linear(sum(num_kernels)*5,hidden_decoder_size),
+							nn.Linear(sum(num_kernels)*4,hidden_decoder_size),
 							nn.ReLU(),
 							nn.Dropout(dropout),
 							nn.LayerNorm(hidden_decoder_size),
@@ -240,7 +240,8 @@ class StaticEmbeddingCNN(nn.Module):
 						dim=1)			
 
 		#concatenate (p - h1, p - h2, p , h1, h2)
-		concat = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
+		#concat = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
+		concat = torch.cat([p*h1, p-h1, p*h2, p-h2],dim=-1)
 		logit = self.decoder(concat)
 		logit = logit.view(-1)
 
