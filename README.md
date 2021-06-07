@@ -153,7 +153,7 @@ this can also be run using early stopping by setting early stopping > 0
 
 To replicate the baseline accuracy score of 52.73%, run
 ```
-!python scripts/train.py \
+python scripts/train.py \
 --train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
 --val_tsv <PROVIDE VAL TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val_split.tsv>
 --test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/test_split.tsv>
@@ -178,7 +178,7 @@ this can also be run using early stopping by setting early stopping > 0
 
 To replicate the baseline accuracy score of 55.10%, run
 ```
-!python scripts/train.py \
+python scripts/train.py \
 --model_type StaticEmb-rnn \
 --train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
 --val_tsv <PROVIDE VAL TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val_split.tsv>
@@ -203,7 +203,7 @@ this can also be run using early stopping by setting early stopping > 0
 
 To replicate the baseline accuracy score of 56.13%, run
 ```
-!python scripts/train.py \
+python scripts/train.py \
 --model_type StaticEmb-cnn \
 --train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
 --val_tsv <PROVIDE VAL TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val_split.tsv>
