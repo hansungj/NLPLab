@@ -152,7 +152,6 @@ class BagOfWords(BagOfWordsWrapper):
 			self.lemmatizer = WordNetLemmatizer()
 
 	def alignment_cost(self, w1, w2):
-		#print('Words are {} and {}'.format(w1,w2))
 		if self.sim_function in ['cosine', 'euclidean']:
 			token2idx = self.vocab['token2idx']
 			w1 = self.cooccurence_dict[token2idx[w1]]
@@ -171,9 +170,14 @@ class BagOfWords(BagOfWordsWrapper):
 
 		elif self.sim_function == 'distributional':
 			token2idx = self.vocab['token2idx']
+			same = False
+			if w1 == w2:
+				same = True
 			w1 = self.cooccurence_dict[token2idx[w1]]
 
-			if w2 in token2idx.keys():
+			if same:
+				sim = 1
+			elif w2 in token2idx.keys():
 				w2 = token2idx[w2]
 				sim = self.sim(w1, w2)
 			else:
