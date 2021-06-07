@@ -1,19 +1,20 @@
 # NLPLab
 
-## Natural Language Inference 
+# Natural Language Inference 
 
 Contributors:
 - Sungjun Han 
 - Anastasiia Sirotina
 
-# Setup
+## Setup
 ```
 conda env create -f environment.yml
 conda activate nlplab
 pip install -e .
 ```
+Make sure to have a data folder with the aNLI data present: data/alphali/...
 
-# Evaluate 
+## Evaluate 
 
 This allows you to evaluate on predictions written on a file.  
 ```
@@ -21,7 +22,7 @@ python scripts/evaluate.py --label_dir <PROVIDE GROUND TRUTH LABEL FILE PATH> --
 ```
 
 
-# Annotate
+## Annotate
 Try how good you are at this task! This allows you to annotate --max_samples number of randomly selected aNLI data points. 
 
 ```
@@ -30,7 +31,7 @@ python scripts/evaluate.py --label_dir <PROVIDE OUTPUT PATH FOR ANNOTATION HERE>
 cat eval_result.json
 ```
 
-# Build a vocabulary 
+## Build a vocabulary 
 
 for deep learnign models - baseline models, we need to make a vocabulary to initilaize our WhiteSpaceTokenizer. For the pre-trained models, we will just use the availble pretrained sub-word tokenizers. 
 ```
@@ -47,27 +48,30 @@ you can also set vocabulary specifiction parameters
 2. --vocabulary_size : desired vocabulary size, selects the top frequent word types and filters out the rest 
 # train a base line model
 
-# Split test into 90/10 Val/Test
+## Split test into 90/10 Val/Test
 
 Since testing out the prediction on the unknown test set requires submitting the results on the public leaderboard along with project description (and only allowed every 7 days ), we will use the split the provided dev set into a test set and a validation set using 90/10 split. This can be done by running parser.py
 
 ```
 python scripts/parser.py \
 --suffix _split \
-- split 0.1 \
+--split 0.1 \
 
 ```
-
 This splits val.tsv into two files: val_split.tsv and test_split.tsv
 
-# Train baseline model : Bag of Words - Maximum Entropy using IDF / Levenshtein / Lemmatization 
-
+## Train baseline model : Bag of Words 
 Note that for the baseline BoW model with Maximum entropy classifier - there is no need to run the model more than one epoch.
+
+###  Maximum Entropy using IDF / Levenshtein / Lemmatization 
+to run -
+
 ```
 python scripts/train.py \
 --model_type BoW \
+--train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
+--test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val.tsv>
 --bow_classifier maxent \ 
-
 --num_epochs 1 \
 --bow_sim_function levenshtein \
 --bow_weight_function idf \
