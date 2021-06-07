@@ -71,6 +71,7 @@ parser.add_argument('--num_epochs', default =100, type=int, help = 'Number of tr
 parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples per epoch')
 parser.add_argument('--evaluate', default=False, type=bool, help='Decide to evaluate on validation set')
 parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evaluation measure') # put multiple eval measures separated by ','
+parser.add_argument('--seed', default=1234, type=int, help='set seed for random, numpy, torch, torch.cuda')
 
 #for testing 
 # parser.add_argment('--fit_one_batch', default=False, type=bool, help='fits one batch for santy check for model')
@@ -135,6 +136,8 @@ parser.add_argument('--pretrained_name', default='bert-base-uncased', type=str, 
 #directory for data/train/val
 
 def main(args):
+
+	utils.set_seed(args.seed)
 
 	logger.info('Saving the output to %s' % args.output_dir)
 	logger.info('CONFIGURATION:')
