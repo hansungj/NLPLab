@@ -72,8 +72,8 @@ to run a model that scored 50.97%,
 ```
 python scripts/train.py \
 --model_type BoW \
---train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
---test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val.tsv>
+--train_tsv data/alphanli/tsv/train.tsv \ 
+--test_tsv data/alphanli/tsv/val.tsv \ 
 --bow_classifier prc \ 
 --num_epochs 1 \
 --bow_sim_function levenshtein \
@@ -91,8 +91,8 @@ to run a model that scored 50.79%,
 ```
 python scripts/train.py \
 --model_type BoW \
---train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
---test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val.tsv>
+--train_tsv data/alphanli/tsv/train.tsv \ 
+--test_tsv data/alphanli/tsv/val.tsv \ 
 --bow_classifier prc \ 
 --num_epochs 1 \
 --bow_sim_function distributional \
@@ -110,8 +110,8 @@ to run a model that scored 50.13%,
 ```
 python scripts/train.py \
 --model_type BoW \
---train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
---test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val.tsv>
+--train_tsv data/alphanli/tsv/train.tsv \ 
+--test_tsv data/alphanli/tsv/val.tsv \ 
 --bow_classifier maxent \ 
 --num_epochs 1 \
 --bow_sim_function levenshtein \
@@ -129,8 +129,8 @@ to run a model that scored 51.52%,
 ```
 python scripts/train.py \
 --model_type BoW \
---train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
---test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val.tsv>
+--train_tsv data/alphanli/tsv/train.tsv \ 
+--test_tsv data/alphanli/tsv/val.tsv \ 
 --bow_classifier maxent \ 
 --num_epochs 1 \
 --bow_sim_function distributional \
@@ -154,9 +154,9 @@ this can also be run using early stopping by setting early stopping > 0
 To replicate the baseline accuracy score of 52.73%, run
 ```
 python scripts/train.py \
---train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
---val_tsv <PROVIDE VAL TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val_split.tsv>
---test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/test_split.tsv>
+--train_tsv data/alphanli/tsv/train.tsv \ 
+--val_tsv data/alphanli/tsv/val_split.tsv \ 
+--test_tsv data/alphanli/tsv/test_split.tsv \ 
 --model_type StaticEmb-mixture \
 --sem_pooling sum \
 --use_cuda True \
@@ -167,8 +167,8 @@ python scripts/train.py \
 --se_num_decoder_layers 3 \
 --glove_model glove-wiki-gigaword-50 \
 --evaluate true \
---early_stopping 0 \
---num_epochs 50 \
+--early_stopping 10 \
+--num_epochs 100 \
 --seed 1234 \
 ```
 
@@ -180,9 +180,10 @@ To replicate the baseline accuracy score of 55.10%, run
 ```
 python scripts/train.py \
 --model_type StaticEmb-rnn \
---train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
---val_tsv <PROVIDE VAL TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val_split.tsv>
---test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/test_split.tsv>
+--train_tsv data/alphanli/tsv/train.tsv
+--train_tsv data/alphanli/tsv/train.tsv \ 
+--val_tsv data/alphanli/tsv/val_split.tsv \ 
+--test_tsv data/alphanli/tsv/test_split.tsv \ 
 --use_cuda True \
 --batch_size 128 \
 --learning_rate 5e-4 \
@@ -192,7 +193,7 @@ python scripts/train.py \
 --glove_model glove-wiki-gigaword-50 \
 --sernn_bidirectional true \
 --evaluate true \
---early_stopping 0 \
+--early_stopping 10 \
 --num_epochs 50 \
 --seed 1234 \
 ```
@@ -205,16 +206,16 @@ To replicate the baseline accuracy score of 56.13%, run
 ```
 python scripts/train.py \
 --model_type StaticEmb-cnn \
---train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
---val_tsv <PROVIDE VAL TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val_split.tsv>
---test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/test_split.tsv>
+--train_tsv data/alphanli/tsv/train.tsv \ 
+--val_tsv data/alphanli/tsv/val_split.tsv \ 
+--test_tsv data/alphanli/tsv/test_split.tsv \ 
 --use_cuda True \
 --batch_size 128 \
 --learning_rate 1e-4 \
 --optimizer adam \ 
 --glove_model glove-wiki-gigaword-50 \
 --evaluate true \
---early_stopping 0 \
+--early_stopping 10 \
 --num_epochs 100 \
 --seed 1234 \
 ```
@@ -229,16 +230,17 @@ To replicate the baseline accuracy score of 61.82%, run
 python scripts/train.py \
 --model_type pretrained-transformers-cls \
 --pretrained_name bert-base-uncased \
---train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
---val_tsv <PROVIDE VAL TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val_split.tsv>
---test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/test_split.tsv>
+--train_tsv data/alphanli/tsv/train.tsv \ 
+--val_tsv data/alphanli/tsv/val_split.tsv \ 
+--test_tsv data/alphanli/tsv/test_split.tsv \ 
 --batch_size 128 \
 --early_stopping 0 \ 
---num_epochs 10 \ 
+--num_epochs 20 \ 
 --evaluate True \
 --learning_rate 1e-5 \
 --use_cuda True \
 --scheduler True \
 --weight_decay 0.0 \ 
 --seed 1234 \
+--early_stopping 10 \
 ```
