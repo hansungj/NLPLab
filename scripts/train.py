@@ -44,9 +44,9 @@ parser.add_argument('--data_dir', default='data', type=str)
 parser.add_argument('--vocab', default='data/vocab.json', type=str)
 
 #directory for data/train/val 
-parser.add_argument('--train_tsv', default='data/alphanli/tsv/train_split.tsv', type=str)
-parser.add_argument('--val_tsv', default='data/alphanli/tsv/dev_split.tsv', type=str)
-parser.add_argument('--test_tsv', default='data/alphanli/tsv/dev.tsv', type=str)
+parser.add_argument('--train_tsv', default='data/alphanli/tsv/train.tsv', type=str)
+parser.add_argument('--val_tsv', default='data/alphanli/tsv/val_split.tsv', type=str)
+parser.add_argument('--test_tsv', default='data/alphanli/tsv/test_split.tsv', type=str)
 
 #directory for data/train/val - but questions only tokenized
 # parser.add_argument('--train_pickle', default='train.pickle', type=str)
@@ -71,6 +71,7 @@ parser.add_argument('--num_epochs', default =100, type=int, help = 'Number of tr
 parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples per epoch')
 parser.add_argument('--evaluate', default=False, type=bool, help='Decide to evaluate on validation set')
 parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evaluation measure') # put multiple eval measures separated by ','
+parser.add_argument('--seed', default=1234, type=int, help='set seed for random, numpy, torch, torch.cuda')
 
 #for testing 
 # parser.add_argment('--fit_one_batch', default=False, type=bool, help='fits one batch for santy check for model')
@@ -103,7 +104,7 @@ parser.add_argument('--bow_me_regularization_coef', default=0.1, help='L2 regula
 #deep learning models 
 parser.add_argument('--use_cuda', default=False, type=bool, help = 'activate to use cuda')
 parser.add_argument('--learning_rate', default=1e-4, type=float)
-parser.add_argument('--tokenizer', default='regular', help='choose tokenizer: regular/bpe/pretrained')
+parser.add_argument('--tokenizer', default='regular', help='choose tokenizer: regular/bpe - for baseline model')
 parser.add_argument('--optimizer', default='adam', help='adam/adamW/sgd/..')
 parser.add_argument('--beta_1', default=0.99, type=float, help='beta1 for first moment')
 parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for second moment')
@@ -114,7 +115,7 @@ parser.add_argument('--num_warming_steps', default=0.1, help='number of warming 
 parser.add_argument('--dropout', default=0.5, type=float, help='')
 parser.add_argument('--grad_norm_clip', default=None, type=float, help='clip the norm')
 parser.add_argument('--grad_accumulation_steps', default=None, type=int, help='number of steps to accumulate gradient')
-parser.add_argument('--early_stopping_patience', default=10,  type=int, help='patience for early stopping')
+parser.add_argument('--early_stopping', default=10,  type=int, help='patience for early stopping - if 0 no early stopping used')
 
 #model -static embedding  
 parser.add_argument('--glove_model', default='glove-wiki-gigaword-50', type=str, help='choose from fasttext-wiki-news-subwords-300, conceptnet-numberbatch-17-06-300, word2vec-ruscorpora-300, word2vec-google-news-300, glove-wiki-gigaword-50, glove-wiki-gigaword-100, glove-wiki-gigaword-200, glove-wiki-gigaword-300, glove-twitter-25, glove-twitter-50, glove-twitter-100, glove-twitter-200') 
@@ -135,6 +136,8 @@ parser.add_argument('--pretrained_name', default='bert-base-uncased', type=str, 
 #directory for data/train/val
 
 def main(args):
+
+	utils.set_seed(args.seed)
 
 	logger.info('Saving the output to %s' % args.output_dir)
 	logger.info('CONFIGURATION:')
@@ -479,20 +482,24 @@ def main(args):
 					val_stats.print()
 
 				#early stopping
-				if total_loss < val_loss:
-					earlyStop = 0
-					torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
+				if args.early_stopping:
+					if total_loss < val_loss:
+						earlyStop = 0
+						torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
 
-					val_loss = total_loss
-					continue 
+						val_loss = total_loss
+						continue 
 
-				earlyStop += 1
-				if args.early_stopping_patience == earlyStop:
-					logging.info('Early stopping criterion met - terminating')
-					break
+					earlyStop += 1
+					if args.early_stopping == earlyStop:
+						logging.info('Early stopping criterion met - terminating')
+						break
 
 				logging.info('Early stopping patience {}'.format(earlyStop))
 
+			# if we dont early stop just save the last model 
+			if not args.early_stopping:
+				torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
 		'''
 
 		TEST 
