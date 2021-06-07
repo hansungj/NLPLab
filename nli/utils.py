@@ -4,6 +4,10 @@ import argparse
 import json 
 from collections import defaultdict 
 
+import random
+import numpy as np
+import torch
+
 def open_label_file(path):
 	if path:
 		with open(path, 'r') as f:
@@ -34,3 +38,10 @@ def open_tsv_file(path, dic=False):
 			return res
 		return data
 	raise ValueError('Must give tsv data path')
+
+def set_seed(seed):
+	random.seed(seed)
+	np.random.seed(seed)
+	torch.manual_seed(seed)
+	if torch.cuda.is_available():
+		torch.cuda.manual_seed_all(seed)
