@@ -86,6 +86,8 @@ These models use pre-trained embeddings
 ### FFN - train for 50 epochs using SUM pooling method 
 
 this can also be run using early stopping by setting early stopping > 0 
+
+To replicate the baseline accuracy score of 52.73%, run
 ```
 !python scripts/train.py \
 --train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
@@ -103,11 +105,14 @@ this can also be run using early stopping by setting early stopping > 0
 --evaluate true \
 --early_stopping 0 \
 --num_epochs 50 \
+--seed 1234 \
 ```
 
 ### RNN - train for 50 epochs 
 
 this can also be run using early stopping by setting early stopping > 0 
+
+To replicate the baseline accuracy score of 55.10%, run
 ```
 !python scripts/train.py \
 --model_type StaticEmb-rnn \
@@ -125,6 +130,7 @@ this can also be run using early stopping by setting early stopping > 0
 --evaluate true \
 --early_stopping 0 \
 --num_epochs 50 \
+--seed 1234 \
 ```
 
 ### CNN
@@ -136,10 +142,15 @@ python scripts/train.py --model_type StaticEmb-CNN
 
 this can also be run using early stopping by setting early stopping > 0. We use huggingface implementation for pretrained transformer models.
 
+To replicate the baseline accuracy score of 61.82%, run 
+
 ```
 python scripts/train.py \
 --model_type pretrained-transformers-cls \
 --pretrained_name bert-base-uncased \
+--train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
+--val_tsv <PROVIDE VAL TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val_split.tsv>
+--test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/test_split.tsv>
 --batch_size 128 \
 --early_stopping 0 \ 
 --num_epochs 10 \ 
@@ -148,4 +159,5 @@ python scripts/train.py \
 --use_cuda True \
 --scheduler True \
 --weight_decay 0.0 \ 
+--seed 1234 \
 ```
