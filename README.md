@@ -180,7 +180,6 @@ To replicate the baseline accuracy score of 55.10%, run
 ```
 python scripts/train.py \
 --model_type StaticEmb-rnn \
---train_tsv data/alphanli/tsv/train.tsv
 --train_tsv data/alphanli/tsv/train.tsv \ 
 --val_tsv data/alphanli/tsv/val_split.tsv \ 
 --test_tsv data/alphanli/tsv/test_split.tsv \ 
