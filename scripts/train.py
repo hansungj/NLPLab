@@ -103,7 +103,7 @@ parser.add_argument('--bow_me_regularization_coef', default=0.1, help='L2 regula
 #deep learning models 
 parser.add_argument('--use_cuda', default=False, type=bool, help = 'activate to use cuda')
 parser.add_argument('--learning_rate', default=1e-4, type=float)
-parser.add_argument('--tokenizer', default='regular', help='choose tokenizer: regular/bpe/pretrained')
+parser.add_argument('--tokenizer', default='regular', help='choose tokenizer: regular/bpe - for baseline model')
 parser.add_argument('--optimizer', default='adam', help='adam/adamW/sgd/..')
 parser.add_argument('--beta_1', default=0.99, type=float, help='beta1 for first moment')
 parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for second moment')
