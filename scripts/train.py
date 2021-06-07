@@ -44,9 +44,9 @@ parser.add_argument('--data_dir', default='data', type=str)
 parser.add_argument('--vocab', default='data/vocab.json', type=str)
 
 #directory for data/train/val 
-parser.add_argument('--train_tsv', default='data/alphanli/tsv/train_split.tsv', type=str)
-parser.add_argument('--val_tsv', default='data/alphanli/tsv/dev_split.tsv', type=str)
-parser.add_argument('--test_tsv', default='data/alphanli/tsv/dev.tsv', type=str)
+parser.add_argument('--train_tsv', default='data/alphanli/tsv/train.tsv', type=str)
+parser.add_argument('--val_tsv', default='data/alphanli/tsv/val_split.tsv', type=str)
+parser.add_argument('--test_tsv', default='data/alphanli/tsv/test_split.tsv', type=str)
 
 #directory for data/train/val - but questions only tokenized
 # parser.add_argument('--train_pickle', default='train.pickle', type=str)
