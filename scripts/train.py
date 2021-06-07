@@ -383,7 +383,7 @@ def main(args):
 		TRAINING 
 		'''
 
-		val_loss = 1000 # 1000 for early stop
+		val_accuracy = 0. # 1000 for early stop
 		earlyStop = 0
 		for epoch in tqdm(range(args.num_epochs), desc='epoch'):
 			labels = []
@@ -483,11 +483,12 @@ def main(args):
 
 				#early stopping
 				if args.early_stopping:
-					if total_loss < val_loss:
+					current_accuracy = val_stats.keeper['accuracy'][-1]
+					if current_accuracy > val_accuracy:
 						earlyStop = 0
 						torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
 
-						val_loss = total_loss
+						val_accuracy = current_accuracy
 						continue 
 
 					earlyStop += 1
@@ -495,7 +496,7 @@ def main(args):
 						logging.info('Early stopping criterion met - terminating')
 						break
 
-				logging.info('Early stopping patience {}'.format(earlyStop))
+					logging.info('Early stopping patience {}'.format(earlyStop))
 
 			# if we dont early stop just save the last model 
 			if not args.early_stopping:
@@ -550,11 +551,14 @@ def main(args):
 
 		test_stats.eval(test_labels,test_pred)
 		test_stats.update('loglikelihood',test_loss)
+		test_stats.print()
 
 		#save prediction 
 		with open(os.path.join(output_dir, 'predictions.txt'),'w') as f:
 			for p in test_pred:
 				f.write(str(p) + '\n')
+
+
  
 	'''
 
