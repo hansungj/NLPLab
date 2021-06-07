@@ -48,7 +48,7 @@ you can also set vocabulary specifiction parameters
 2. --vocabulary_size : desired vocabulary size, selects the top frequent word types and filters out the rest 
 # train a base line model
 
-## Split test into 90/10 Val/Test
+## Split Dev into 70/30 Test/Val
 
 Since testing out the prediction on the unknown test set requires submitting the results on the public leaderboard along with the project description (and submission is only allowed every 7 days), we will use the provided dev set for testing by splitting it into a test set and a validation set with random 90/10 split. The reason why we split on dev.tsv, not on train.tsv, is that the answer distribution seems to be very different between the train and dev. Thus using a validation set created from splitting train will result will not work for monitoring the model's generalization capabiltiy. 
 
@@ -60,7 +60,7 @@ It can be also be newly created by running parser.py
 ```
 python scripts/parser.py \
 --suffix _split \
---split 0.1 \
+--split 0.3 \
 ```
 This splits val.tsv into two files: val_split.tsv and test_split.tsv at data/alphanli/tsv
 
