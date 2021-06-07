@@ -67,7 +67,7 @@ This splits val.tsv into two files: val_split.tsv and test_split.tsv at data/alp
 ## Train baseline model : Bag of Words 
 Note that for the baseline BoW model with Maximum entropy classifier - there is no need to run the model more than one epoch.
 ###  Perceptron using Levenshtein
-to run a model that scored 50.97%, 
+to run a model that scored 50.79%, 
 
 ```
 python scripts/train.py \
