@@ -50,7 +50,7 @@ class StaticEmbeddingMixture(nn.Module):
 		self.decoder = nn.ModuleList([Head(hidden_encoder_size*5, hidden_decoder_size, nn.ReLU(), dropout)])
 		for _ in range(num_decoder_layers-2):
 			self.decoder.append(Head(hidden_decoder_size, hidden_decoder_size, nn.ReLU(), dropout))
-		self.decoder.append(Linear(hidden_decoder_size, 1))
+		self.decoder.append(nn.Linear(hidden_decoder_size, 1))
 
 		self.loss_fn = nn.BCEWithLogitsLoss()
 
