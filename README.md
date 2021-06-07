@@ -124,7 +124,7 @@ python scripts/train.py \
 
 ```
 ###  Maximum Entropy using Distributional 
-to run a model that scored 50.32%, 
+to run a model that scored 51.52%, 
 
 ```
 python scripts/train.py \
