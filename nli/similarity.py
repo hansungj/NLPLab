@@ -32,21 +32,19 @@ def distributional(x,y):
 def cosine(x,y):
 	'''
 	cosine tokens' distance
-	#calculate norm in advance, prenormalize for cosine
-	#going thru keys in x and check if they are in y
 	'''
 	dist = 0
 	try:
 		axes = set(x[1].keys())
-	except KeyError:
+	except KeyError: #for handling OOV words
 		return 0
-	except IndexError:
+	except IndexError: #for handling OOV words
 		return 0
 	try:
 		axes = axes.intersection(set(y[1].keys()))
-	except KeyError:
+	except KeyError: #for handling OOV words
 		return 0
-	except IndexError:
+	except IndexError: #for handling OOV words
 		return 0
 	for axis in axes:
 		x_ = x[1].get(axis, 0)
@@ -55,7 +53,7 @@ def cosine(x,y):
 	dist = dist / (x[0] * y[0])
 	return dist
 
-
+#deprecate?
 def euclidian(x,y):
 	'''
 	euclidian tokens' distance
