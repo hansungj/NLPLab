@@ -65,7 +65,7 @@ This splits val.tsv into two files: val_split.tsv and test_split.tsv at data/alp
 Note that for the baseline BoW model with Maximum entropy classifier - there is no need to run the model more than one epoch.
 
 ###  Maximum Entropy using IDF / Levenshtein / Lemmatization 
-to run -
+to run a model that scored 50.13%, 
 
 ```
 python scripts/train.py \
