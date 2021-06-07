@@ -36,6 +36,7 @@ class StaticEmbeddingMixture(nn.Module):
 		super().__init__()
 
 		self.embedding = embedding
+		self.pooling = pooling
 		hidden_size = embedding.weight.size(1)
 
 		self.encoder_premise = nn.ModuleList([Head(hidden_size, hidden_encoder_size, nn.ReLU(), dropout)])
@@ -59,9 +60,9 @@ class StaticEmbeddingMixture(nn.Module):
 
 		elif pooling =='product':
 			self.pooling = torch.prod
+		else:
+			raise ValueError 
 
-		elif pooling =='max':
-			self.pooling = torch.max
 
 	def forward(self, p, h1, h2, y=None ):
 
@@ -70,7 +71,7 @@ class StaticEmbeddingMixture(nn.Module):
 		h2 = self.embedding(h2)
 
 		#pool
-		p = self.pooling(p, dim=1) #B x 1 X H
+		p  = self.pooling(p, dim=1) #B X H
 		h1 = self.pooling(h1, dim=1)
 		h2 = self.pooling(h2, dim=1)
 
