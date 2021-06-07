@@ -66,7 +66,44 @@ This splits val.tsv into two files: val_split.tsv and test_split.tsv at data/alp
 
 ## Train baseline model : Bag of Words 
 Note that for the baseline BoW model with Maximum entropy classifier - there is no need to run the model more than one epoch.
+###  Perceptron using Levenshtein
+to run a model that scored 50.97%, 
 
+```
+python scripts/train.py \
+--model_type BoW \
+--train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
+--test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val.tsv>
+--bow_classifier prc \ 
+--num_epochs 1 \
+--bow_sim_function levenshtein \
+--bow_weight_function idf \
+--bow_max_cost 100 \ 
+--bow_lemmatize True \
+--bow_bidirectional False \
+--bow_me_num_buckets 30 \
+--bow_me_step_size 0.1 \
+
+```
+###  Perceptron using Distributional
+to run a model that scored 50.97%, 
+
+```
+python scripts/train.py \
+--model_type BoW \
+--train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
+--test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val.tsv>
+--bow_classifier prc \ 
+--num_epochs 1 \
+--bow_sim_function distributional \
+--bow_weight_function idf \
+--bow_max_cost 100 \ 
+--bow_lemmatize True \
+--bow_bidirectional False \
+--bow_me_num_buckets 30 \
+--bow_me_step_size 0.1 \
+
+```
 ###  Maximum Entropy using IDF / Levenshtein / Lemmatization 
 to run a model that scored 50.13%, 
 
@@ -83,6 +120,25 @@ python scripts/train.py \
 --bow_lemmatize True \
 --bow_bidirectional False \
 --bow_me_num_buckets 100 \
+--bow_me_step_size 0.1 \
+
+```
+###  Maximum Entropy using Distributional 
+to run a model that scored 50.32%, 
+
+```
+python scripts/train.py \
+--model_type BoW \
+--train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
+--test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val.tsv>
+--bow_classifier maxent \ 
+--num_epochs 1 \
+--bow_sim_function distributional \
+--bow_weight_function idf \
+--bow_max_cost 100 \ 
+--bow_lemmatize True \
+--bow_bidirectional False \
+--bow_me_num_buckets 30 \
 --bow_me_step_size 0.1 \
 
 ```
@@ -141,9 +197,26 @@ To replicate the baseline accuracy score of 55.10%, run
 --seed 1234 \
 ```
 
-### CNN
+### CNN - train for 100 epochs 
+
+this can also be run using early stopping by setting early stopping > 0 
+
+To replicate the baseline accuracy score of 56.13%, run
 ```
-python scripts/train.py --model_type StaticEmb-CNN
+!python scripts/train.py \
+--model_type StaticEmb-cnn \
+--train_tsv <PROVIDE TRAIN TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/train.tsv>
+--val_tsv <PROVIDE VAL TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/val_split.tsv>
+--test_tsv <PROVIDE TEST TSV DIRECTORY HERE - IF NOT PROVIDED WILL BE ASSUMED data/alphanli/tsv/test_split.tsv>
+--use_cuda True \
+--batch_size 128 \
+--learning_rate 1e-4 \
+--optimizer adam \ 
+--glove_model glove-wiki-gigaword-50 \
+--evaluate true \
+--early_stopping 0 \
+--num_epochs 100 \
+--seed 1234 \
 ```
 
 ### BERT with CLS token 
