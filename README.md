@@ -50,15 +50,16 @@ you can also set vocabulary specifiction parameters
 
 ## Split test into 90/10 Val/Test
 
-Since testing out the prediction on the unknown test set requires submitting the results on the public leaderboard along with project description (and only allowed every 7 days ), we will use the split the provided dev set into a test set and a validation set using 90/10 split. This can be done by running parser.py
+Since testing out the prediction on the unknown test set requires submitting the results on the public leaderboard along with the project description (and submission is only allowed every 7 days), we will use the provided dev set for testing by splitting it into a test set and a validation set with random 90/10 split. 
+
+This can be done by running parser.py
 
 ```
 python scripts/parser.py \
 --suffix _split \
 --split 0.1 \
-
 ```
-This splits val.tsv into two files: val_split.tsv and test_split.tsv
+This splits val.tsv into two files: val_split.tsv and test_split.tsv at data/alphanli/tsv
 
 ## Train baseline model : Bag of Words 
 Note that for the baseline BoW model with Maximum entropy classifier - there is no need to run the model more than one epoch.
@@ -83,7 +84,7 @@ python scripts/train.py \
 
 ```
 
-# Train baseline DL models : FFN/RNN/CNN encoder with FFN decoder 
+## Train baseline DL models : FFN/RNN/CNN encoder with FFN decoder 
 
 These models use pre-trained embeddings 
 
