@@ -13,10 +13,10 @@ class Head(nn.Module):
 
 		super().__init__()
 		self.head = nn.Sequential(
-							nn.Dropout(dropout),
 							nn.LayerNorm(input_size),
 							nn.Linear(input_size,output_size),
 							activation,
+							nn.Dropout(dropout),
 							)
 
 	def forward(self, x):
@@ -36,6 +36,7 @@ class StaticEmbeddingMixture(nn.Module):
 		super().__init__()
 
 		self.embedding = embedding
+		self.pooling = pooling
 		hidden_size = embedding.weight.size(1)
 
 		self.encoder_premise = nn.ModuleList([Head(hidden_size, hidden_encoder_size, nn.ReLU(), dropout)])
@@ -47,10 +48,10 @@ class StaticEmbeddingMixture(nn.Module):
 			self.encoder_hyp.append(Head(hidden_encoder_size, hidden_encoder_size, nn.ReLU(), dropout))
 
 
-		self.decoder = nn.ModuleList([Head(hidden_encoder_size*4, hidden_decoder_size, nn.ReLU(), dropout)])
+		self.decoder = nn.ModuleList([Head(hidden_encoder_size*5, hidden_decoder_size, nn.ReLU(), dropout)])
 		for _ in range(num_decoder_layers-2):
 			self.decoder.append(Head(hidden_decoder_size, hidden_decoder_size, nn.ReLU(), dropout))
-		self.decoder.append(Head(hidden_decoder_size, 1, nn.Identity(), dropout))
+		self.decoder.append(nn.Linear(hidden_decoder_size, 1))
 
 		self.loss_fn = nn.BCEWithLogitsLoss()
 
@@ -59,9 +60,9 @@ class StaticEmbeddingMixture(nn.Module):
 
 		elif pooling =='product':
 			self.pooling = torch.prod
+		else:
+			raise ValueError 
 
-		elif pooling =='max':
-			self.pooling = torch.max
 
 	def forward(self, p, h1, h2, y=None ):
 
@@ -70,7 +71,7 @@ class StaticEmbeddingMixture(nn.Module):
 		h2 = self.embedding(h2)
 
 		#pool
-		p = self.pooling(p, dim=1) #B x 1 X H
+		p  = self.pooling(p, dim=1) #B X H
 		h1 = self.pooling(h1, dim=1)
 		h2 = self.pooling(h2, dim=1)
 
@@ -84,7 +85,7 @@ class StaticEmbeddingMixture(nn.Module):
 
 		#concatenate [p - h1, p - h2, p , h1, h2]
 		#or [p*h1, p*h2, torch.abs(p-h1), torch.abs(p-h2)]
-		logit = torch.cat([p*h1, p-h1, p*h2, p-h2],dim=-1)
+		logit = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
 
 		for decoder in self.decoder:
 			logit = decoder(logit)
@@ -122,10 +123,10 @@ class StaticEmbeddingRNN(nn.Module):
 		if bidirectional:
 			hidden_encoder_size *= 2
 
-		self.decoder = nn.ModuleList([Head(hidden_encoder_size*4, hidden_decoder_size, nn.ReLU(), dropout)])
+		self.decoder = nn.ModuleList([Head(hidden_encoder_size*5, hidden_decoder_size, nn.ReLU(), dropout)])
 		for _ in range(num_decoder_layers-2):
 			self.decoder.append(Head(hidden_decoder_size, hidden_decoder_size, nn.ReLU(),dropout))
-		self.decoder.append(Head(hidden_decoder_size, 1, nn.Identity(), dropout))
+		self.decoder.append(Linear(hidden_decoder_size, 1))
 
 		self.loss_fn = nn.BCEWithLogitsLoss()
 
@@ -159,11 +160,9 @@ class StaticEmbeddingRNN(nn.Module):
 			h2 = h2[:,-1,:]
 
 		#concatenate (p - h1, p - h2, p , h1, h2)
-		#logit = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
+		logit = torch.cat([p, h1, h2, p-h1, p-h2],dim=-1)
 
-		logit = torch.cat([p*h1, p-h1, p*h2, torch.abs(p-h2)],dim=-1)
-		
-
+		#logit = torch.cat([p*h1, p-h1, p*h2, p-h2],dim=-1)
 
 		for decoder in self.decoder:
 			logit = decoder(logit)

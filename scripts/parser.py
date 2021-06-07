@@ -1,8 +1,6 @@
 '''
 
-prepare data into h5 file which can be used to run the models 
-
-We will use this file for splitting for train/val split from train.tsv
+We will use this file for splitting for train/val split from dev.tsv
 
 '''
 import numpy as np
@@ -13,7 +11,7 @@ from sklearn.model_selection import train_test_split
 parser = argparse.ArgumentParser()
 
 #directory 
-parser.add_argument('--tsv_path', default='data/alphanli/tsv/train.tsv', type=str)
+parser.add_argument('--tsv_path', default='data/alphanli/tsv/dev.tsv', type=str)
 parser.add_argument('--output_dir', default='data/alphanli/tsv', type=str)
 parser.add_argument('--suffix', default='_split')
 
@@ -27,15 +25,15 @@ def main(args):
 
 	data = open(args.tsv_path, 'r').readlines()
 
-	train, dev = train_test_split(data, test_size = args.split, shuffle=True)
+	test, dev = train_test_split(data, test_size = args.split, shuffle=True)
 
 
-	with open(os.path.join(args.output_dir, 'train' + args.suffix + '.tsv'), 'w') as f:
-		for l in train:
+	with open(os.path.join(args.output_dir, 'test' + args.suffix + '.tsv'), 'w') as f:
+		for l in test:
 			f.write(l)
 
-	with open(os.path.join(args.output_dir, 'dev' + args.suffix + '.tsv'), 'w') as f:
-		for l in train:
+	with open(os.path.join(args.output_dir, 'val' + args.suffix + '.tsv'), 'w') as f:
+		for l in dev:
 			f.write(l)
 
 if __name__ == '__main__':
