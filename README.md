@@ -6,6 +6,12 @@ Contributors:
 - Sungjun Han 
 - Anastasiia Sirotina
 
+Our repository is structured in the following way:
+
+1. all executable scripts for training, evaluating, testing, etc will be in the "scripts" folder
+2. all reusable functions are under the nli folder (which can be used as a package)
+3. all models are under the nli/models folder (which can also be used as a package)
+
 ## Setup
 ```
 conda env create -f environment.yml
@@ -167,8 +173,8 @@ python scripts/train.py \
 --se_num_decoder_layers 3 \
 --glove_model glove-wiki-gigaword-50 \
 --evaluate true \
---early_stopping 10 \
---num_epochs 100 \
+--early_stopping 0 \
+--num_epochs 50 \
 --seed 1234 \
 ```
 
@@ -192,7 +198,7 @@ python scripts/train.py \
 --glove_model glove-wiki-gigaword-50 \
 --sernn_bidirectional true \
 --evaluate true \
---early_stopping 10 \
+--early_stopping 0 \
 --num_epochs 50 \
 --seed 1234 \
 ```
@@ -214,7 +220,7 @@ python scripts/train.py \
 --optimizer adam \ 
 --glove_model glove-wiki-gigaword-50 \
 --evaluate true \
---early_stopping 10 \
+--early_stopping 0 \
 --num_epochs 100 \
 --seed 1234 \
 ```
@@ -234,12 +240,12 @@ python scripts/train.py \
 --test_tsv data/alphanli/tsv/test_split.tsv \ 
 --batch_size 128 \
 --early_stopping 0 \ 
---num_epochs 20 \ 
+--num_epochs 15 \ 
 --evaluate True \
 --learning_rate 1e-5 \
 --use_cuda True \
 --scheduler True \
 --weight_decay 0.0 \ 
 --seed 1234 \
---early_stopping 10 \
+--early_stopping 0 \
 ```
