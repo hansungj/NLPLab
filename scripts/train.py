@@ -383,7 +383,7 @@ def main(args):
 		TRAINING 
 		'''
 
-		val_accuracy = 0. # 1000 for early stop
+		val_accuracy = 0. # for early stop
 		earlyStop = 0
 		for epoch in tqdm(range(args.num_epochs), desc='epoch'):
 			labels = []
