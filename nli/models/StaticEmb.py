@@ -174,6 +174,8 @@ class StaticEmbeddingRNN(nn.Module):
 		return logit, loss
 
 class StaticEmbeddingCNN(nn.Module):
+	#the CNN was assembled by following the tutotial by Chris Tran
+	#https://chriskhanhtran.github.io/posts/cnn-sentence-classification/
 
 	def __init__(self,
 				 embedding,
