@@ -45,12 +45,12 @@ class BookCorpusLmLoader(DataLoader):
 
 
 def merge(sequences):
-		lengths = [len(seq) for seq in sequences]
-		padded_seqs =  torch.zeros((len(sequences), max(lengths))).long() # gpt tokenizer has pad token id of zero
-		for i, seq in enumerate(sequences):
-			end = lengths[i]
-			padded_seqs[i, :end] = seq[:end]
-		return padded_seqs, lengths
+    lengths = [len(seq) for seq in sequences]
+    padded_seqs =  torch.zeros((len(sequences), max(lengths))).long() # gpt tokenizer has pad token id of zero
+    for i, seq in enumerate(sequences):
+        end = lengths[i]
+        padded_seqs[i, :end] = seq[:end]
+    return padded_seqs, lengths
 
 def collate_fn_BookCorpusLM(data):
 
@@ -99,7 +99,7 @@ class BookCorpusLmDataset(Dataset):
         target_ids = []
 
         #make the control code explictit -- this way we can clearly distingjish between the antecedent/subsequent if we choose to do so 
-        if len(text) == 2: 
+        if len(text) > 2: 
             control = 'antecedent : ' + control[0] + ' subsequent : ' + control[1:]
         else:
             control = 'antecedent : ' + control
