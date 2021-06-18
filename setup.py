@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
 	name="nli-nlp-lab",
-    version="0.1",
+    version="0.2",
     keywords="",
-    packages=["nli", "nli.models"]
+    packages=["nli", "nli.models", "nli.pretrain"]
     )
