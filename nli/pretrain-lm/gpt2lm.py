@@ -45,6 +45,7 @@ class GptLmDynamic(nn.Module):
 
     '''
     this model will do next sentence prediction using the [sep] token 
+    or pools the premise and hypothesis separately
     '''
     
     def __init__(self,

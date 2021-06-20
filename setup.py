@@ -4,5 +4,5 @@ setup(
 	name="nli-nlp-lab",
     version="0.2",
     keywords="",
-    packages=["nli", "nli.models", "nli.pretrain"]
+    packages=["nli", "nli.models"]
     )
