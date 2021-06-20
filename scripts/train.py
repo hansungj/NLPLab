@@ -19,7 +19,7 @@ from nli.embedding import build_embedding_glove
 from nli.models import *
 from nli.models import StaticEmbeddingCNN
 
-from transformers import BertTokenizer, get_linear_schedule_with_warmup
+from transformers import BertTokenizer, GPT2Tokenizer, get_linear_schedule_with_warmup
 
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
@@ -235,41 +235,6 @@ def main(args):
 		with open(os.path.join(output_dir, 'predictions.txt'),'w') as f:
 			for p in y_pred:
 				f.write(str(p) + '\n')
-
-	elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
-
-		tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
-
-		#initialize dataloader
-		train_dataset = AlphaDatasetTransformer(args.train_tsv, tokenizer, args.max_samples_per_epoch)
-		test_dataset = AlphaDatasetTransformer(args.test_tsv, tokenizer)
-
-		stats = metrics.MetricKeeper(args.eval_measure.split(','))
-		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
-
-		#initialize val-dataloader
-		val_dataset = None
-		if args.evaluate:
-			val_dataset = AlphaDatasetTransformer(args.val_tsv, tokenizer, args.max_samples_per_epoch)
-			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
-
-		
-		train_loader, test_loader, val_loader =load_dataloader_transformer(
-											train_dataset, 
-											test_dataset,
-											val_dataset,
-											args.batch_size, 
-											shuffle=args.shuffle, 
-											drop_last = True, 
-											num_workers = args.num_workers)
-
-		#load models
-		if args.model_type == 'pretrained-transformers-cls':
-			model = PretrainedTransformerCLS(args.pretrained_name)
-
-		elif args.model_type == 'pretrained-transformers-pooling':
-			model = PretrainedTransformerCLS(args.pretrained_name)
-
 	
 	elif args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
 		vocab = json.load(open(args.vocab, 'r'))
@@ -334,6 +299,45 @@ def main(args):
 			model = StaticEmbeddingCNN(embedding_matrix,
 					 args.se_hidden_decoder_size,
 					 args.dropout)
+	
+	elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
+
+		if 'bert' in args.pretrained_name:
+			tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
+		
+		elif 'gpt' in args.pretrained_name:
+			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name)
+
+		#initialize dataloader
+		train_dataset = AlphaDatasetTransformer(args.train_tsv, tokenizer, args.max_samples_per_epoch)
+		test_dataset = AlphaDatasetTransformer(args.test_tsv, tokenizer)
+
+		stats = metrics.MetricKeeper(args.eval_measure.split(','))
+		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+
+		#initialize val-dataloader
+		val_dataset = None
+		if args.evaluate:
+			val_dataset = AlphaDatasetTransformer(args.val_tsv, tokenizer, args.max_samples_per_epoch)
+			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+
+		
+		train_loader, test_loader, val_loader =load_dataloader_transformer(
+											train_dataset, 
+											test_dataset,
+											val_dataset,
+											args.batch_size, 
+											shuffle=args.shuffle, 
+											drop_last = True, 
+											num_workers = args.num_workers)
+
+		#load models
+		if args.model_type == 'pretrained-transformers-cls':
+			model = PretrainedTransformerCLS(args.pretrained_name)
+
+		elif args.model_type == 'pretrained-transformers-pooling':
+			# fix this so that it pools 
+			model = PretrainedTransformerCLS(args.pretrained_name)
 
 
 	if args.model_type != 'BoW':
