@@ -1,16 +1,3 @@
-#generate.py
-'''
-
-prepeare data into h5 file which can be used to run the models 
-
-
-three things - 
-
-1. early stopping and saving the check points along with rotating the checkpoints by deleting the old ones
-2. split train into 90 10 train/val so that we can use the "val" as the test 
-3. implement ESIM 
-4. run.py which runs the model by their checkpoint for evaluating 
-'''
 import logging
 import os
 import numpy as np
@@ -22,8 +9,6 @@ from tqdm import tqdm
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-
-#pip install transformers
 
 import nli.utils as utils 
 from nli.data import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, load_dataloader_base, load_dataloader_transformer
@@ -119,7 +104,7 @@ parser.add_argument('--early_stopping', default=10,  type=int, help='patience fo
 
 #model -static embedding  
 parser.add_argument('--glove_model', default='glove-wiki-gigaword-50', type=str, help='choose from fasttext-wiki-news-subwords-300, conceptnet-numberbatch-17-06-300, word2vec-ruscorpora-300, word2vec-google-news-300, glove-wiki-gigaword-50, glove-wiki-gigaword-100, glove-wiki-gigaword-200, glove-wiki-gigaword-300, glove-twitter-25, glove-twitter-50, glove-twitter-100, glove-twitter-200') 
-parser.add_argument('--freeze_embedding', default=True, type=bool, help='freezes the glvoe pretrained embedding')
+parser.add_argument('--freeze_embedding', default=False, type=bool, help='freezes the glvoe pretrained embedding')
 parser.add_argument('--se_hidden_encoder_size', default=200, type=int, help='hidden size for the encoder')
 parser.add_argument('--se_hidden_decoder_size', default=200, type=int, help='hidden size for the decoder')
 parser.add_argument('--se_num_encoder_layers', default=2, type=int, help='number of encoder layers ')
@@ -322,7 +307,7 @@ def main(args):
 		#initialize model 
 		if  args.model_type == 'StaticEmb-mixture':
 			padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
-			embedding_matrix = build_embedding_glove(vocab, args.glove_model,padding_idx)
+			embedding_matrix = build_embedding_glove(vocab, args.glove_model,padding_idx, args.freeze_embedding)
 			model = StaticEmbeddingMixture(embedding_matrix,
 					 args.se_hidden_encoder_size,
 					 args.se_hidden_decoder_size,
@@ -333,7 +318,7 @@ def main(args):
 
 		elif args.model_type == 'StaticEmb-rnn':
 			padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
-			embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx)
+			embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx, args.freeze_embedding)
 			model = StaticEmbeddingRNN (embedding_matrix,
 					 args.se_hidden_encoder_size,
 					 args.se_hidden_decoder_size,
@@ -345,7 +330,7 @@ def main(args):
 		
 		elif args.model_type == 'StaticEmb-cnn':
 			padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
-			embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx)
+			embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx, args.freeze_embedding)
 			model = StaticEmbeddingCNN(embedding_matrix,
 					 args.se_hidden_decoder_size,
 					 args.dropout)

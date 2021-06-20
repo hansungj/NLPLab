@@ -20,6 +20,11 @@ class GptLmBase(nn.Module):
         self.lm_loss_fn= nn.CrossEntropyLoss()
 
     def forward(self, **inputs):
+        '''
+        make sure that the 
+        1. target
+        2. nsp_label are part of 
+        '''
         
         targets = inputs.pop('targets')
         nsp_label = inputs.pop('nsp_label')

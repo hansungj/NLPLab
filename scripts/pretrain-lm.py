@@ -16,12 +16,13 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 import transformers 
+from datasets import load_dataset
 
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
 
 
-argparse.add_argument('--corpus_dir', default=None, type=str)
+argparse.add_argument('--corpus_dir_path', default='../bookcorpus-train.arrow', type=str)
 
 #training 
 argparse.add_argument('--shuffle', default=none, type=str)
@@ -47,6 +48,8 @@ def main(args):
 
     '''
 
+    logger.info('Loading dataset from {}'.format(args.corpus_dir_path))
+    data = load_dataset()
 
 if __name__ == '__main__':
     args = parser.parse_args()
