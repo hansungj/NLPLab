@@ -16,6 +16,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 import transformers 
+from transformers import GPT2LMHeadModel, GPT2Tokenizer 
 from datasets import load_dataset
 
 parser = argparse.ArgumentParser()
