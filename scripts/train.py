@@ -308,7 +308,7 @@ def main(args):
 		elif 'gpt' in args.pretrained_name:
 			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name) 
 			tokenizer.add_special_tokens({'pad_token': '[PAD]', 'sep_token': '[SEP]'})
-			tokenizer.sep_token = bos_token
+			tokenizer.sep_token = tokenizer.bos_token
 			#however note that masking is done by attention_masks in the dataloader 
 
 		#initialize dataloader
