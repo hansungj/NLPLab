@@ -307,8 +307,8 @@ def main(args):
 		
 		elif 'gpt' in args.pretrained_name:
 			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name) 
-			tokenizer.add_special_tokens({'pad_token': '[PAD]', 'sep_token': '[SEP]'})
-			tokenizer.cls_token = tokenizer.bos_token # use box token as the cls token
+			tokenizer.add_special_tokens({'pad_token': '[PAD]', 'sep_token': '[SEP]', 'cls_token':'[CLS]'})
+			#however note that masking is done by attention_masks in the dataloader 
 
 		#initialize dataloader
 		train_dataset = AlphaDatasetTransformer(args.train_tsv, tokenizer, args.max_samples_per_epoch)
@@ -410,11 +410,15 @@ def main(args):
 
 				loss.backward()
 
+				'''
+				implement gradient norm clip 
+				'''
+
 				if args.grad_norm_clip:
 					torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_norm_clip)
 
 				'''
-				gradient accumulation 
+				implement gradient accumulation 
 				'''
 				optimizer.step()
 				if args.scheduler:
