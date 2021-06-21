@@ -307,7 +307,8 @@ def main(args):
 		
 		elif 'gpt' in args.pretrained_name:
 			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name) 
-			tokenizer.add_special_tokens({'pad_token': '[PAD]', 'sep_token': '[SEP]', 'cls_token':'[CLS]'})
+			tokenizer.add_special_tokens({'pad_token': '[PAD]', 'sep_token': '[SEP]'})
+			tokenizer.sep_token = bos_token
 			#however note that masking is done by attention_masks in the dataloader 
 
 		#initialize dataloader
@@ -335,16 +336,17 @@ def main(args):
 
 		#load models
 		if args.model_type == 'pretrained-transformers-cls':
+			if 'gpt' in args.pretrained_name:
+				raise ValueError('we cannot use CLS classifier with GPT2')
 			model = PretrainedTransformerCLS(args.pretrained_name)
+			
+		elif args.model_type == 'pretrained-transformers-pooling':
+			# fix this so that it pools 
+			model = PretrainedTransformerPooling(args.pretrained_name)
 
 			if 'gpt' in args.pretrained_name:
 				# when we do this we need to resize the embedding 
 				model.model.resize_token_embeddings(len(tokenizer))
-
-		elif args.model_type == 'pretrained-transformers-pooling':
-			# fix this so that it pools 
-			model = PretrainedTransformerCLS(args.pretrained_name)
-
 
 	if args.model_type != 'BoW':
 
