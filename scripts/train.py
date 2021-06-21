@@ -307,6 +307,8 @@ def main(args):
 		
 		elif 'gpt' in args.pretrained_name:
 			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name)
+			#since there is no sep token for GPT2 00 just use white space 
+			tokenizer.sep_token = ' ' 
 
 		#initialize dataloader
 		train_dataset = AlphaDatasetTransformer(args.train_tsv, tokenizer, args.max_samples_per_epoch)
