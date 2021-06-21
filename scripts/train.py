@@ -306,9 +306,9 @@ def main(args):
 			tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
 		
 		elif 'gpt' in args.pretrained_name:
-			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name)
-			#since there is no sep token for GPT2 00 just use white space 
-			tokenizer.sep_token = ' ' 
+			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name) 
+			tokenizer.add_special_tokens({'pad_token': '[PAD]', 'sep_token': '[SEP]'})
+			tokenizer.cls_token = tokenizer.bos_token # use box token as the cls token
 
 		#initialize dataloader
 		train_dataset = AlphaDatasetTransformer(args.train_tsv, tokenizer, args.max_samples_per_epoch)
@@ -336,6 +336,10 @@ def main(args):
 		#load models
 		if args.model_type == 'pretrained-transformers-cls':
 			model = PretrainedTransformerCLS(args.pretrained_name)
+
+			if 'gpt' in args.pretrained_name:
+				# when we do this we need to resize the embedding 
+				model.model.resize_token_embeddings(len(tokenizer))
 
 		elif args.model_type == 'pretrained-transformers-pooling':
 			# fix this so that it pools 
