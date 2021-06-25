@@ -98,7 +98,7 @@ parser.add_argument('--eps', default=1e-8, type=float)
 parser.add_argument('--scheduler', default=None, type =bool, help='')
 parser.add_argument('--num_warming_steps', default=0.1, help='number of warming steps for the scheduler - between 0 and 1')
 parser.add_argument('--dropout', default=0.5, type=float, help='')
-parser.add_argument('--grad_norm_clip', default=None, type=float, help='clip the norm')
+parser.add_argument('--grad_norm_clip', default=1, type=float, help='clip the norm')
 parser.add_argument('--grad_accumulation_steps', default=None, type=int, help='number of steps to accumulate gradient')
 parser.add_argument('--early_stopping', default=10,  type=int, help='patience for early stopping - if 0 no early stopping used')
 
@@ -300,20 +300,33 @@ def main(args):
 					 args.se_hidden_decoder_size,
 					 args.dropout)
 	
-	elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
+	elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling', 'pretrained-transformers-decoder']:
+
+		dataset_kwargs = {'data_path': args.train_tsv,
+				'max_samples': args.max_samples_per_epoch,
+				'sep_token': None,
+				'pad_token_id': None,
+				'cls_at_start': True
+				}
 
 		if 'bert' in args.pretrained_name:
 			tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
 		
 		elif 'gpt' in args.pretrained_name:
 			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name) 
-			tokenizer.add_special_tokens({'pad_token': '[PAD]', 'sep_token': '[SEP]'})
-			tokenizer.cls_token = tokenizer.bos_token
-			#however note that masking is done by attention_masks in the dataloader 
+			tokenizer.add_special_tokens({'cls_token': '[CLS]'})
+			dataset_kwargs['sep_token'] = '|'
+			dataset_kwargs['pad_token_id'] = 0
+			dataset_kwargs['cls_at_start'] = False
+		
+		dataset_kwargs['tokenizer'] = tokenizer
 
-		#initialize dataloader
-		train_dataset = AlphaDatasetTransformer(args.train_tsv, tokenizer, args.max_samples_per_epoch)
-		test_dataset = AlphaDatasetTransformer(args.test_tsv, tokenizer)
+		#initialize dataloader -- train
+		train_dataset = AlphaDatasetTransformer(**dataset_kwargs)
+
+		#initialize dataloader -- test
+		dataset_kwargs['data_path'] = args.test_tsv
+		test_dataset = AlphaDatasetTransformer(**dataset_kwargs)
 
 		stats = metrics.MetricKeeper(args.eval_measure.split(','))
 		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
@@ -321,10 +334,10 @@ def main(args):
 		#initialize val-dataloader
 		val_dataset = None
 		if args.evaluate:
-			val_dataset = AlphaDatasetTransformer(args.val_tsv, tokenizer, args.max_samples_per_epoch)
+			dataset_kwargs['data_path'] = args.val_tsv
+			val_dataset = AlphaDatasetTransformer(**dataset_kwargs)
 			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
-		
 		train_loader, test_loader, val_loader =load_dataloader_transformer(
 											train_dataset, 
 											test_dataset,
@@ -338,16 +351,25 @@ def main(args):
 		if args.model_type == 'pretrained-transformers-cls':
 			if 'gpt' in args.pretrained_name:
 				raise ValueError('we cannot use CLS classifier with GPT2')
+
 			model = PretrainedTransformerCLS(args.pretrained_name)
 			
 		elif args.model_type == 'pretrained-transformers-pooling':
+			if 'gpt' in args.pretrained_name:
+				raise ValueError('we cannot use pooling classifier with GPT2')
+
 			# fix this so that it pools 
 			model = PretrainedTransformerPooling(args.pretrained_name)
 
-		#make sure to expand the embedding matrix 
-		if 'gpt' in args.pretrained_name:
-			# when we do this we need to resize the embedding 
+		elif args.model_type == 'pretrained-transformers-decoder':
+			if 'gpt' not in args.pretrained_name:
+				raise ValueError('for now we only support gpt model')
+				
+			model = PretrainedDecoderTransformer(args.pretrained_name)
 			model.model.resize_token_embeddings(len(tokenizer))
+		
+	else:
+		raise ValueError('model type not recognized')
 
 	if args.model_type != 'BoW':
 
@@ -410,6 +432,28 @@ def main(args):
 						label = label.to(device)
 
 					logits, loss = model(input_ids, segment_ids, masks, label)
+				
+				elif args.model_type in ['pretrained-transformers-decoder']:
+					if args.use_cuda:
+						batch['input_ids'] = batch['input_ids'].to(device)
+						batch['segment_ids'] = batch['segment_ids'].to(device)
+						batch['masks'] = batch['masks'].to(device)
+						batch['label'] = batch['label'].to(device)
+						batch['input_lengths'] = batch['input_lengths'].to(device)
+						batch['lm_label'] = batch['lm_label'].to(device)
+
+					inputs = {
+					'input_ids': batch['input_ids'],
+					'attention_mask':batch['segment_ids'],
+					'token_type_ids':batch['masks'],
+					'mc_token_ids':batch['input_lengths'] -1,
+					'mc_labels':batch['label'],
+					'labels': batch['lm_label']
+					}
+					
+					logits, loss_mc, loss_lm = model(**inputs)
+					loss = loss_mc + loss_lm
+					label = batch['label']
 
 				loss.backward()
 
@@ -470,6 +514,28 @@ def main(args):
 								label = label.to(device)
 
 							logits, loss = model(input_ids, segment_ids, masks, label)
+						
+						elif args.model_type in ['pretrained-transformers-decoder']:
+							if args.use_cuda:
+								batch['input_ids'] = batch['input_ids'].to(device)
+								batch['segment_ids'] = batch['segment_ids'].to(device)
+								batch['masks'] = batch['masks'].to(device)
+								batch['label'] = batch['label'].to(device)
+								batch['input_lengths'] = batch['input_lengths'].to(device)
+								batch['lm_label'] = batch['lm_label'].to(device)
+
+							inputs = {
+							'input_ids': batch['input_ids'],
+							'attention_mask':batch['segment_ids'],
+							'token_type_ids':batch['masks'],
+							'mc_token_ids':batch['input_lengths'] -1,
+							'mc_labels':batch['label'],
+							'labels': batch['lm_label']
+							}
+							
+							logits, loss_mc, loss_lm = model(**inputs)
+							loss = loss_mc + loss_lm
+
 
 						#update keepr for log liklihood
 						total_loss += loss.mean().item()
@@ -542,8 +608,29 @@ def main(args):
 						segment_ids = segment_ids.to(device)
 						masks = masks.to(device)
 						label = label.to(device)
-
+			
 					logits, loss = model(input_ids, segment_ids, masks, label)
+				
+				elif args.model_type in ['pretrained-transformers-decoder']:
+					if args.use_cuda:
+						batch['input_ids'] = batch['input_ids'].to(device)
+						batch['segment_ids'] = batch['segment_ids'].to(device)
+						batch['masks'] = batch['masks'].to(device)
+						batch['label'] = batch['label'].to(device)
+						batch['input_lengths'] = batch['input_lengths'].to(device)
+						batch['lm_label'] = batch['lm_label'].to(device)
+
+					inputs = {
+					'input_ids': batch['input_ids'],
+					'attention_mask':batch['segment_ids'],
+					'token_type_ids':batch['masks'],
+					'mc_token_ids':batch['input_lengths'] -1,
+					'mc_labels':batch['label'],
+					'labels': batch['lm_label']
+					}
+				
+					logits, loss_mc, loss_lm = model(**inputs)
+					loss = loss_mc + loss_lm
 
 			#update keepr for log liklihood
 			test_loss += loss.mean().item()
@@ -585,8 +672,6 @@ def prepare_model_parameters_weight_decay(named_parameters):
 	]
 	return grouped_params
 
-def train(model, dataloader):
-	return None
 
 if __name__ == '__main__':
 	args = parser.parse_args()

@@ -89,7 +89,6 @@ def merge(sequences, pad_id):
 	#pad to max_length
 	for i, seq in enumerate(sequences):
 		padded_batch[i, :len(seq)] = seq
-
 	return padded_batch, torch.LongTensor(lengths)
 
 def alpha_collate_fn_base(batch):
@@ -134,10 +133,16 @@ class AlphaDatasetTransformer(Dataset):
 	def __init__(self,
 				data_path,
 				tokenizer, 
-				max_samples=None):
+				max_samples=None,
+				sep_token=None,
+				pad_token_id=None,
+				cls_at_start=True):
 		self.data = open_tsv_file(data_path, dic=True)
 		self.tokenizer = tokenizer
 		self.max_samples = max_samples
+		self.pad_token_id = tokenizer.pad_token_id if pad_token_id is  None else pad_token_id
+		self.sep_token = tokenizer.sep_token if sep_token is None else sep_token
+		self.cls_at_start = cls_at_start
 
 	def __len__(self):
 		if self.max_samples is None:
@@ -145,15 +150,24 @@ class AlphaDatasetTransformer(Dataset):
 		return self.max_samples
 
 	def __getitem__(self, idx):
-		observation = (' ' + self.tokenizer.sep_token + ' ').join([self.data['obs1'][idx], self.data['obs2'][idx]])
-		hypotheses = (' ' + self.tokenizer.sep_token + ' ').join([self.data['hyp1'][idx],self.data['hyp2'][idx]])
+		observation = (' ' + self.sep_token + ' ').join(['observation 1 '+ self.data['obs1'][idx], 'observation 2 '+self.data['obs2'][idx]])
+		hypotheses = (' ' + self.sep_token + ' ').join(['hypothesis 1 '+ self.data['hyp1'][idx],'hypothesis 2 '+  self.data['hyp2'][idx]])
 
 		tokens = self.tokenizer.tokenize(observation)
-		tokens.insert(0, self.tokenizer.cls_token)
-		tokens.append(self.tokenizer.sep_token)
+		#if we are working with a transformer encoder 
+		if self.cls_at_start: 
+			#tokens.insert(0, self.tokenizer.bos_token)
+			tokens.insert(0, self.tokenizer.cls_token)
+
+		tokens.append(self.sep_token)
 		tokens_id = self.tokenizer.convert_tokens_to_ids(tokens)
 
 		segment_ids = [0]*len(tokens_id)
+
+		# if we are working with a transformer decoder 
+		if not self.cls_at_start:
+			tokens.append(self.tokenizer.eos_token)
+			tokens.append(self.tokenizer.cls_token)
 
 		tokens = self.tokenizer.tokenize(hypotheses)
 		hyp_id = self.tokenizer.convert_tokens_to_ids(tokens)
@@ -162,13 +176,22 @@ class AlphaDatasetTransformer(Dataset):
 		tokens_id.extend(hyp_id)
 		masks = [1]*len(tokens_id)
 
+		#for gpt 2 language modelling 
+		targets = tokens_id.copy()
+		targets[0] = -100
+
+		#label to one hot encoding
+		# label = [0]*2
+		# label[self.data['label'][idx]] =1 
+
 		item = {}
 		item['input_ids'] = torch.tensor(tokens_id)
 		item['segment_ids'] = torch.tensor(segment_ids)
 		item['masks'] = torch.tensor(masks)
-		item['reference'] = observation + ' <SEP> ' + hypotheses
+		item['reference'] = observation + self.sep_token + hypotheses
 		item['label'] = torch.tensor(self.data['label'][idx])
-		item['pad_id'] = self.tokenizer.pad_token_id
+		item['pad_id'] = self.pad_token_id
+		item['target_ids'] = torch.tensor(targets)
 
 		return item
 
@@ -182,14 +205,16 @@ def alpha_collate_fn_transformer(batch):
 	segment_ids, _ = merge(item['segment_ids'], pad_id)
 	masks, _ = merge(item['masks'], pad_id)
 	label = torch.stack(item['label']).float()
+	target_ids, _ =  merge(item['target_ids'], pad_id = -100)
 
 	d = {}
 	d['input_ids'] = input_ids
 	d['segment_ids'] = segment_ids
-	d['input_length'] = input_length
+	d['input_lengths'] = input_length
 	d['masks'] = masks
 	d['reference'] = item['reference']
 	d['label'] = label
+	d['lm_label'] = target_ids
 	return d
 
 def load_dataloader_base(dataset, test_dataset, val_dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0):

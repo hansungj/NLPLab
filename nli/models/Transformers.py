@@ -6,6 +6,7 @@ Pretrained bert
 
 
 from transformers import AutoModel, AutoConfig
+from transformers import GPT2DoubleHeadsModel
 import torch.nn as nn
 import torch
 
@@ -46,11 +47,8 @@ class PretrainedTransformerPooling(nn.Module):
 
 		hidden_size = self.config.hidden_size
 		self.classifier = nn.Sequential(
-			nn.LayerNorm(hidden_size),
-			nn.Dropout(dropout),
 			nn.Linear(hidden_size, hidden_size),
-			nn.GELU(),
-			nn.LayerNorm(hidden_size),
+			nn.Tanh(),
 			nn.Dropout(dropout),
 			nn.Linear(hidden_size,1)
 		)
@@ -69,4 +67,32 @@ class PretrainedTransformerPooling(nn.Module):
 			loss = self.loss_fn(logits.view(-1),y.view(-1))
 			return logits, loss
 
+		return logits
+
+class PretrainedDecoderTransformer(nn.Module):
+	'''
+	This model will 
+	1. take the last token hidden embedding and use this for prediction 
+	2. language model as an auxiliary objective  
+
+	described in GPT1
+	'''
+	def __init__(self, model_name,  dropout=0.1):
+		super().__init__()
+		
+		config = AutoConfig.from_pretrained(model_name)
+		config.summary_type = "cls_index"
+		config.num_labels = 1
+		config.summary_first_dropout = dropout
+		self.model = GPT2DoubleHeadsModel.from_pretrained(model_name, config=config)
+		self.loss_fn = nn.BCEWithLogitsLoss()
+	def forward(self, **kwargs):
+
+		labels  = kwargs.pop('mc_labels')
+		output = self.model(**kwargs)
+		loss_lm = output.loss
+		logits = output.mc_logits
+		if labels is not None:
+			loss_mc = self.loss_fn(logits.view(-1), labels.view(-1))
+			return logits, loss_mc, loss_lm
 		return logits
