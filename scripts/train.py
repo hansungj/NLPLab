@@ -536,6 +536,7 @@ def main(args):
 							logits, loss_mc, loss_lm = model(**inputs)
 							loss = loss_mc + loss_lm
 
+							label = batch['label']
 
 						#update keepr for log liklihood
 						total_loss += loss.mean().item()
@@ -631,6 +632,8 @@ def main(args):
 				
 					logits, loss_mc, loss_lm = model(**inputs)
 					loss = loss_mc + loss_lm
+
+					label = batch['label']
 
 			#update keepr for log liklihood
 			test_loss += loss.mean().item()
