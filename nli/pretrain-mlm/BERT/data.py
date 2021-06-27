@@ -9,16 +9,21 @@ from datasets import load_dataset
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from nli.pretrain-mlm.BERT.BERT_preprocess import prepare_dataset, tokenize_and_mask
+from nli.pretrain-mlm.BERT.preprocess import prepare_dataset, tokenize_and_mask
 
-class MLMDataset(Dataset):
+class MLM_Dataset(Dataset):
 	
 	def __init__(self,
-				dataset = 'bookcorpus'
-				max_samples=None):
+				dataset,
+				tokenizer,
+				masking_prob = 0.15
+				max_samples = None):
+				
 		dataset_preload = load_dataset(dataset) #split='train'
 		self.data = dataset_preload['train']
 		self.max_samples = max_samples
+		self.tokenizer = tokenizer
+		self.masking_prob = masking_prob
 
 	def __len__(self):
 		if self.max_samples is None:
@@ -30,7 +35,7 @@ class MLMDataset(Dataset):
 		output = self.data[1][idx]
 		
 		datapair = (input, output)
-		inputs, masking = tokenize_and_mask(datapair, tokenizer = 'bert-base-uncased', max_length = 60, padding = 'max_length', masking_prob = 0.15)
+		inputs, masking = tokenize_and_mask(datapair, self.tokenizer, max_length, padding = 'max_length', self.masking_prob)
 
 		item = {}
 		item['input_ids'] = torch.tensor(inputs['input_ids'])
@@ -65,21 +70,4 @@ def load_dataloader_mlm(dataset, test_dataset, val_dataset, batch_size ,shuffle=
 		shuffle=shuffle, 
 		drop_last=drop_last,
 		num_workers=num_workers )
-
-	test_dataloader = DataLoader(test_dataset, 
-		batch_size, 
-		collate_fn = collate_fn, 
-		shuffle=False, 
-		drop_last=False,
-		num_workers=num_workers )
-
-	val_dataloader = None
-	if val_dataset is not None:
-		val_dataloader = DataLoader(val_dataset, 
-			batch_size, 
-			collate_fn = collate_fn, 
-			shuffle=shuffle, 
-			drop_last=False,
-			num_workers=num_workers)
-
-	return dataloader, test_dataloader, val_dataloader
+	return dataloader

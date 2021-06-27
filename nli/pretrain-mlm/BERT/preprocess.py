@@ -20,11 +20,11 @@ def prepare_dataset(corpus):
 	dataset = (inputs, outputs)
 	return dataset
 
-def tokenize_and_mask(dataset, tokenizer = 'bert-base-uncased', max_length = 60, padding = 'max_length', masking_prob = 0.15):
+def tokenize_and_mask(dataset, tokenizer, max_length = 100, padding = 'max_length', masking_prob = 0.15):
 	# tutorial by James Briggs used:
 	# https://towardsdatascience.com/masked-language-modelling-with-bert-7d49793e5d2c
 	
-	tokenizer = BertTokenizer.from_pretrained(tokenizer)
+	#tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
 	inputs = tokenizer(dataset[0], return_tensors='pt', max_length=max_length, truncation=True, padding=padding)
 	outputs = tokenizer(dataset[1], return_tensors='pt', max_length=max_length, truncation=True, padding=padding)
@@ -49,6 +49,7 @@ def tokenize_and_mask(dataset, tokenizer = 'bert-base-uncased', max_length = 60,
 		
 	return inputs, masking
 
+#IGNORE
 def mask(inputs, max_length = 60, padding = 'max_length', masking_prob = 0.15):
 
 	random_nums = torch.rand(inputs.input_ids.shape)
