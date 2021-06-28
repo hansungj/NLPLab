@@ -96,7 +96,7 @@ parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for secon
 parser.add_argument('--weight_decay', default=0, type=float)
 parser.add_argument('--eps', default=1e-8, type=float)
 parser.add_argument('--scheduler', default=None, type =bool, help='')
-parser.add_argument('--num_warming_steps', default=0.1, help='number of warming steps for the scheduler - between 0 and 1')
+parser.add_argument('--num_warming_steps', default=0.1, type=float, help='number of warming steps for the scheduler - between 0 and 1')
 parser.add_argument('--dropout', default=0.5, type=float, help='')
 parser.add_argument('--grad_norm_clip', default=1, type=float, help='clip the norm')
 parser.add_argument('--grad_accumulation_steps', default=None, type=int, help='number of steps to accumulate gradient')

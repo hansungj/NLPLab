@@ -150,8 +150,8 @@ class AlphaDatasetTransformer(Dataset):
 		return self.max_samples
 
 	def __getitem__(self, idx):
-		observation = (' ' + self.sep_token + ' ').join(['observation 1 '+ self.data['obs1'][idx], 'observation 2 '+self.data['obs2'][idx]])
-		hypotheses = (' ' + self.sep_token + ' ').join(['hypothesis 1 '+ self.data['hyp1'][idx],'hypothesis 2 '+  self.data['hyp2'][idx]])
+		observation = (' ' + self.sep_token + ' ').join(['observation 1 :'+ self.data['obs1'][idx], 'observation 2 :'+self.data['obs2'][idx]])
+		hypotheses = (' ' + self.sep_token + ' ').join(['hypothesis 1 :'+ self.data['hyp1'][idx],'hypothesis 2 :'+  self.data['hyp2'][idx]])
 
 		tokens = self.tokenizer.tokenize(observation)
 		#if we are working with a transformer encoder 
