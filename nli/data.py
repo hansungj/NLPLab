@@ -1,14 +1,19 @@
 '''
-will contain all data loader
+
+Author:  Sungjun Han
+Description: contains data loader / dataset objects for the AlphaNLI task 
+
+1. dataset object for BoW baseline 
+2. dataset object for simple neural network models (sem-encoder-pooling models)
+3. dataset object for transformer models 
+4. define dataloader function for (2)
+5. define dataloader function for (3)
 
 '''
 
 import json
 import numpy as np
 import re
-
-
-
 import torch
 from torch.utils.data import DataLoader, Dataset
 
@@ -16,6 +21,9 @@ from nli.utils import open_tsv_file
 from nli.preprocess import tokenize
 
 class AlphaDatasetBaseline(Dataset):
+	'''
+	Author:  Sungjun Han
+	'''
 	def __init__(self,
 				 data_path, 
 				 max_samples=None):
@@ -38,6 +46,9 @@ class AlphaDatasetBaseline(Dataset):
 		return obs, hyp1, hyp2, label
 
 class AlphaDataset(Dataset):
+	'''
+	Author:  Sungjun Han
+	'''
 	def __init__(self,
 				data_path,
 				tokenizer, 
@@ -82,6 +93,11 @@ class AlphaDataset(Dataset):
 		return torch.tensor(tokens_id), torch.tensor(masks), obs
 
 def merge(sequences, pad_id):
+	'''
+	Author:  Sungjun Han
+	Description:
+	Merges the batch by padding to the max length
+	'''
 	lengths = [len(l) for l in sequences]
 	max_length = max(lengths)
 
@@ -92,6 +108,11 @@ def merge(sequences, pad_id):
 	return padded_batch, torch.LongTensor(lengths)
 
 def alpha_collate_fn_base(batch):
+	'''
+	Author:  Sungjun Han
+	Description:
+	Colate_fn function for the sem-encoder-pooling models
+	'''
 	item={}
 	for key in batch[0].keys():
 		item[key] = [d[key] for d in batch] # [item_dic, item_idc ]
@@ -126,9 +147,10 @@ def alpha_collate_fn_base(batch):
 
 class AlphaDatasetTransformer(Dataset):
 	'''
-
-	prepares by just concatenating everything
-
+	Author:  Sungjun Han
+	Description: Prepares input as [obs1, [SEP], obs2, [SEP], hyp1, [SEP], hyp2]. 
+	Depending on the task [CLS] token will be inserted at position 0 or -1
+	
 	'''
 	def __init__(self,
 				data_path,
@@ -196,6 +218,12 @@ class AlphaDatasetTransformer(Dataset):
 		return item
 
 def alpha_collate_fn_transformer(batch):
+	'''
+	Author:  Sungjun Han
+	Description:
+	Colate_fn function for the transformer models	
+	'''
+
 	item={}
 	for key in batch[0].keys():
 		item[key] = [d[key] for d in batch] # [item_dic, item_idc ]
@@ -218,6 +246,11 @@ def alpha_collate_fn_transformer(batch):
 	return d
 
 def load_dataloader_base(dataset, test_dataset, val_dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0):
+	'''
+	Author:  Sungjun Han
+	Description:
+	prepares dataloader for train/val/test for sem-encoder-pooling models 
+	'''
 	dataloader = DataLoader(dataset, 
 		batch_size, 
 		collate_fn = alpha_collate_fn_base, 
@@ -243,6 +276,11 @@ def load_dataloader_base(dataset, test_dataset, val_dataset, batch_size, shuffle
 	return dataloader, test_dataloader, val_dataloader
 
 def load_dataloader_transformer(dataset, test_dataset, val_dataset, batch_size ,shuffle=True, drop_last = True, num_workers=0):
+	'''
+	Author:  Sungjun Han
+	Description:
+	prepares dataloader for train/val/test for transformer models 
+	'''
 	dataloader = DataLoader(dataset, 
 		batch_size, 
 		collate_fn = alpha_collate_fn_transformer, 

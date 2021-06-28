@@ -6,6 +6,10 @@ import gensim
 import gensim.downloader as api
 
 def build_embedding_glove(vocab, glove_name, padding_idx, freeze=True):
+	'''
+	Author: Sungjun Han
+	Description: Loads glove embeddings for the static embedding (sem) models 
+	'''
 
 	glove = api.load(glove_name)
 	N = len(vocab['token2idx'])

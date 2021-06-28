@@ -1,4 +1,8 @@
+'''
+Author: Sungjun Han
+Description: Allows the user to annotate aNLI dataset manually
 
+'''
 import argparse
 import random
 import os

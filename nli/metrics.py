@@ -6,6 +6,11 @@ from collections import defaultdict
 
 class MetricKeeper(object):
 
+	'''
+	Author: Sungjun Han
+	Description: Class for holding and evaluting evaluation metrics 
+	'''
+
 	def __init__(self, eval_measures):
 
 		assert(isinstance(eval_measures, list))
@@ -50,6 +55,10 @@ def log_likelihood(y, y_pred, k=2):
 
 
 def accuracy(y_true, y_pred):
+	'''
+	Author: Sungjun Han
+	Description: calcalates accuracy 
+	'''
 
 	assert(len(y_true)==len(y_pred))
 	acc = sum(1 if yt==yp else 0 for yt, yp in zip(y_true, y_pred) )/len(y_pred)
@@ -59,6 +68,9 @@ def accuracy(y_true, y_pred):
 
 def confusion_matrix(y_true, y_pred, axis=0):
 	'''
+	Author: Sungjun Han
+	Description: computes confusion matrix 
+	
 	axis=0 computes ground in terms of hypothesis 1 
 	axis=1 computes ground in terms of hypothesis 2 
 
@@ -85,6 +97,7 @@ def confusion_matrix(y_true, y_pred, axis=0):
 	return C 
 
 def precision(y_true, y_pred, C=None):
+	
 	#raise NotImplementedError
 	if C is None:
 		C = confusion_matrix(y_true, y_pred)

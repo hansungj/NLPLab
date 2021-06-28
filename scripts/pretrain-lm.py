@@ -1,5 +1,6 @@
 '''
-for pretraining GPT-2 or other language models (transformer decoder archiecture )
+Author: Sungjun Han
+Description: for pretraining GPT-2 or other language models (transformer decoder archiecture )
 '''
 
 import logging

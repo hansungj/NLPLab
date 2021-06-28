@@ -1,3 +1,8 @@
+'''
+Author: Sungjun Han, Anastasiia 
+Description: calcalates accuracy 
+'''
+
 import numpy as np
 import re
 from collections import defaultdict

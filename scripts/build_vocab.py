@@ -1,7 +1,6 @@
 '''
-
-build_vocab.py
-
+Author: Sungjun Han
+Description:
 here we can build either 
 
 1. regular vocabulary 

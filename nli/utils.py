@@ -1,5 +1,8 @@
 # utils.py
-
+'''
+Author: Sungjun Han
+Description: Various utilty functions 
+'''
 import argparse 
 import json 
 from collections import defaultdict 
