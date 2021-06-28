@@ -15,10 +15,13 @@ def sigmoid(x):
 
 class BagOfWordsWrapper(object):
 	'''
-	Wrapper for Bag of words - holds 
-
+	Author: Sungjun Han, Anastasiia   
+	Description: Wrapper for Bag of words 
+	
+	- holds 
 	1. alignment costs functions 
-	2. lexical weighting functions 
+	2. lexical weighting functions
+	3. co-occurence matrix building 
 	'''
 
 	def idf(self, corpus):
@@ -110,12 +113,16 @@ class BagOfWordsWrapper(object):
 
 class BagOfWords(BagOfWordsWrapper):
 
+	'''
+	Author: Sungjun Han 
+	Description: BoW baseline model 
+	'''
+
 	def __init__(self,
 				 classifier,
 				 sim_function='levenshtein',
 				 weight_function=None,
 				 cooccurence_dict = None,
-				 #norm_dict = None,
 				 max_cost = 100,
 				 bidirectional = False,
 				 lemmatize = False,
@@ -303,6 +310,8 @@ class BagOfWords(BagOfWordsWrapper):
 
 class GDClassifier(object):
 	'''
+	Author: Sungjun Han 
+	Description:
 	Wrapper for gradient descent based classifiers 
 	'''
 
@@ -324,7 +333,10 @@ class GDClassifier(object):
 		NotImplementedError 
 
 class Perceptron(GDClassifier):
-
+	'''
+	Author: Anastassia  
+	Description: Perceptron classifier 
+	'''
 	def __init__(self,
 				num_features,
 				lr=1,
@@ -357,7 +369,10 @@ class Perceptron(GDClassifier):
 		return x
 
 class LogisticRegression(GDClassifier):
-
+	'''
+	Author: Anastassia  
+	Description: logistic regression classifier 
+	'''
 	def __init__(self,
 				num_features,
 				lr=0.01,
@@ -401,6 +416,9 @@ class LogisticRegression(GDClassifier):
 
 class MaxEnt(GDClassifier):
 	'''
+	Author: Sungjun Han  
+	Description: Maximum entropy classifier 
+
 	Using continous features require more complicated solution 
 	Hence we take a buckting approach where for each continous feature 
 	which we know to be centered around zero 

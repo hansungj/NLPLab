@@ -1,10 +1,14 @@
 #tokenization - will hold different tokenization objects here
+'''
+Author: Sungjun Han
+'''
 
 from nli.preprocess import tokenize
 
 class WhiteSpaceTokenizer(object):
 	'''
-	simple white space tokenizer
+	Author: Sungjun Han
+	Description: simple white space tokenizer
 	'''
 
 	def __init__(self, 
@@ -31,7 +35,10 @@ class WhiteSpaceTokenizer(object):
 
 class SubwordTokenizer(object):
 	'''
-	Word word tokenizer - vocabulary needs to be built using BPE/WordPiece
+	Author: Sungjun Han
+	Description: Sub word tokenizer - vocabulary needs to be built using BPE/WordPiece
+
+	NotImplemented Yet
 	'''
 	def __init__(self, 
 				vocab):

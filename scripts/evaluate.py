@@ -1,3 +1,8 @@
+'''
+Author: Sungjun Han
+Description: can be used to evaluate from a saved prediction file  
+'''
+
 import argparse 
 import numpy 
 import logging 

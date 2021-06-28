@@ -1,9 +1,11 @@
 '''
-will host data loading objects for 
+Author:  Sungjun Han
+contains data loader / dataset objects for the pre-training and fine-tuning for GPT-2
 
-1.mlm objective 
-2.lm objective 
-
+1. dataloader for pretraining 
+2. dataset object for BookCorpus - for pretraining  
+3. dataset object for fine-tuning 
+4. dataloader for fine-tuning and zero-shot classification 
 '''
 
 import json
@@ -18,6 +20,9 @@ from torch.utils.data.distributed import DistributedSampler
 from datasets import load_dataset # use datasets 
 
 class BookCorpusLmLoader(DataLoader):
+    '''
+    Author:  Sungjun Han
+    '''
     
     def __init__(self,**kwargs):
         
@@ -77,8 +82,9 @@ def collate_fn_bookcorpus_lm(data):
 
 class BookCorpusLmDataset(Dataset): 
     '''
-    dataset objective for lm loader 
+    Author:  Sungjun Han
 
+    dataset objective for lm loader 
     data['text'] = list of two 
     '''
 
@@ -163,30 +169,10 @@ class BookCorpusLmDataset(Dataset):
         d['segment_ids'] = torhc.tensor(segment_ids)
         return d
 
-
-'''
-What i am writing here is a dataloader for a language model - zero shot 
-
-since the observations and hypothesis are structured as follows 
-
-observation 1 
-hypothesis 
-observation 2 
-
-we can use a trained language model for classification as follows 
-
-probabilty of [observation 1 hypothesis-1 observation 2]
-probabilty of [observation 1 hypothesis-2 observation 2]
-
-or we can use these as features along with 
-p(hypothesis)
-p(observation1)
-p(observation2)
-p(observation1-2)
-
-'''
-
 class LMClassificationDataset(Dataset):
+    '''
+    Author:  Sungjun Han
+    '''
 	def __init__(self,
 				data_path,
 				tokenizer, 
@@ -246,6 +232,9 @@ class LMClassificationDataset(Dataset):
         return tokens_id, masks, reference 
 
 def lm_transformer_collate_fn(batch):
+    '''
+    Author:  Sungjun Han
+    '''
 	item={}
 	for key in batch[0].keys():
 		item[key] = [d[key] for d in batch] # [item_dic, item_idc ]

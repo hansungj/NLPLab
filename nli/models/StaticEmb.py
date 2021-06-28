@@ -4,6 +4,10 @@ import torch.nn.functional as F
 
 
 class Head(nn.Module):
+	'''
+	Author: Sungjun Han  
+	Description: FFN head for encoder or decoder 
+	'''
 
 	def __init__(self, 
 				 input_size,
@@ -23,6 +27,10 @@ class Head(nn.Module):
 		return self.head(x)
 
 class StaticEmbeddingMixture(nn.Module):
+	'''
+	Author: Sungjun Han  
+	Description: static embedding model using max/min/average operatino for pooling 
+	'''
 
 	def __init__(self,
 				 embedding,
@@ -97,7 +105,10 @@ class StaticEmbeddingMixture(nn.Module):
 		return logit, loss
 
 class StaticEmbeddingRNN(nn.Module):
-
+	'''
+	Author: Sungjun Han  
+	Description: static embedding model using RNN for pooling 
+	'''
 	def __init__(self,
 				 embedding,
 				 hidden_encoder_size,

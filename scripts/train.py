@@ -1,3 +1,15 @@
+'''
+Author:  Sungjun Han, Anastasiia 
+Description:
+Main train method of all models for aNLI task - also evaluates during training. 
+If specified, it will use the model for prediction on a specified test set. 
+
+
+1. baseline models 
+2. sem-encoder pooling models 
+3. transformer models 
+'''
+
 import logging
 import os
 import numpy as np
@@ -120,6 +132,470 @@ parser.add_argument('--sernn_bidirectional', default=False, type=bool, help='bid
 parser.add_argument('--pretrained_name', default='bert-base-uncased', type=str, help='can be used to initialize a pretrained model from huggingface')
 #directory for data/train/val
 
+
+def baseline_initialize_model(args):
+	'''
+	Author: Sungjun Han,  Anastassia 
+	Description: initializes BoW baseline models 
+	'''
+	logger.info('BASELINE CLASSIFIER: {}'.format(args.bow_classifier))
+	if args.bow_classifier == 'maxent':
+		maxent_kwargs = {
+						'num_features': 2 if args.bow_bidirectional else 1,
+						'num_classes' : 2,
+						'step_size':args.bow_me_step_size,
+						'num_buckets': args.bow_me_num_buckets,
+						'lr' : args.bow_me_lr,
+						'reg' : args.bow_me_regularization,
+						'reg_lambda' : args.bow_me_regularization_coef}
+
+		logger.info(maxent_kwargs)
+		classifier = MaxEnt(**maxent_kwargs)
+
+	elif args.bow_classifier == 'lgr':
+
+		lgr_kwargs = {
+				'num_features': 2 if args.bow_bidirectional else 1,
+				'lr' : args.bow_lgr_lr,
+				'bias' : args.bow_lgr_bias,
+				'regularization' : args.bow_lgr_regularization,
+				'lmda' : args.bow_lgr_regularization_coef
+		}
+
+		logger.info(lgr_kwargs)
+		classifier = LogisticRegression(**lgr_kwargs)
+
+	elif args.bow_classifier == 'prc':
+
+		prc_kwargs = {
+				'num_features': 2 if args.bow_bidirectional else 1,
+				'lr' : args.bow_prc_lr,
+				'bias' : args.bow_prc_bias}
+
+		logger.info(prc_kwargs)
+		classifier = Perceptron(**prc_kwargs)
+	
+			# for baseline 
+	model_kwargs = {
+			'classifier': classifier,
+			'sim_function': args.bow_sim_function,
+			'weight_function': args.bow_weight_function,
+			'max_cost' : args.bow_max_cost,
+			'bidirectional' : args.bow_bidirectional,
+			'lemmatize':args.bow_lemmatize,}
+	model = BagOfWords(**model_kwargs)
+	
+	return model 
+
+def baseline_train(
+	model, 
+	train_dataset,
+	stats,
+	verbose=True):
+	'''
+	Author: Sungjun Han
+	Description: trains baseline - BoW 
+	'''
+	pred, L = model.fit_transform(train_dataset, num_epochs=args.num_epochs, ll=True)
+
+	logger.info('Fitting and Transforming: BoW took {:.2f}s - {:.5f}s per data point'.format(starttime - time.time(), 
+		(starttime - time.time()) / len(train_dataset)))
+
+	#convert to predictions
+	y_pred = np.argmax(pred,axis=-1)
+	y = model.labels 
+
+	#update keepr for log liklihood
+	for epoch, l in enumerate(L):
+		stats.update('loglikelihood',l)
+	stats.eval(y,y_pred)
+
+	#print to log if specified 
+	if verbose:
+		for eval_name, eval_history in stats.keeper.items():
+			logger.info('Train {} - {}'.format( eval_name, eval_history))
+
+	return model, stats
+
+def baseline_test(
+	model,
+	test_dataset,
+	test_stats):
+	#evaluate on test set 
+	pred = model.transform(test_dataset)
+
+	#convert to predictions
+	y_pred = np.argmax(pred,axis=-1)
+
+	y = np.array(test_dataset.dataset['label'])
+	test_stats.eval(y, y_pred)
+
+	return y_pred, test_stats 
+
+def sem_initialize_model(args):
+	'''
+	Author: Sungjun Han, Anastasiia
+	Description: initializes sem (static embedding) neural network baseline models
+	'''
+	#initialize model 
+	if  args.model_type == 'StaticEmb-mixture':
+		padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
+		embedding_matrix = build_embedding_glove(vocab, args.glove_model,padding_idx, args.freeze_embedding)
+		model = StaticEmbeddingMixture(embedding_matrix,
+					args.se_hidden_encoder_size,
+					args.se_hidden_decoder_size,
+					args.se_num_encoder_layers,
+					args.se_num_decoder_layers,
+					args.dropout,
+					args.sem_pooling)
+
+	elif args.model_type == 'StaticEmb-rnn':
+		padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
+		embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx, args.freeze_embedding)
+		model = StaticEmbeddingRNN (embedding_matrix,
+					args.se_hidden_encoder_size,
+					args.se_hidden_decoder_size,
+					args.se_num_encoder_layers,
+					args.se_num_decoder_layers,
+					args.dropout,
+					args.sernn_bidirectional)
+	
+	elif args.model_type == 'StaticEmb-cnn':
+		padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
+		embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx, args.freeze_embedding)
+		model = StaticEmbeddingCNN(embedding_matrix,
+					args.se_hidden_decoder_size,
+					args.dropout)
+	
+	return model 
+
+def transformer_initialize_model(args):
+	'''
+	Author: Sungjun Han
+	Description: initializes transformer models
+	'''
+		#load models
+	if args.model_type == 'pretrained-transformers-cls':
+		if 'gpt' in args.pretrained_name:
+			raise ValueError('we cannot use CLS classifier with GPT2')
+
+		model = PretrainedTransformerCLS(args.pretrained_name)
+		
+	elif args.model_type == 'pretrained-transformers-pooling':
+		if 'gpt' in args.pretrained_name:
+			raise ValueError('we cannot use pooling classifier with GPT2')
+
+		# fix this so that it pools 
+		model = PretrainedTransformerPooling(args.pretrained_name)
+
+	elif args.model_type == 'pretrained-transformers-decoder':
+		if 'gpt' not in args.pretrained_name:
+			raise ValueError('for now we only support gpt model')
+			
+		model = PretrainedDecoderTransformer(args.pretrained_name)
+		model.model.resize_token_embeddings(len(tokenizer))
+	return model 
+
+def prepare_model_parameters_weight_decay(named_parameters):
+	'''
+	Author: Sungjun Han
+	Description: groups parameters for weight decay as biases should not be weight decayed 
+	'''
+
+	no_decay = ['bias', 'LayerNorm.weight']
+	grouped_params = [
+	{'params': [p for n, p in named_parameters if not any(nd in n for nd in no_decay)],
+	'weight_decay': args.weight_decay},
+	{'params': [p for n, p in named_parameters if any(nd in n for nd in no_decay)],
+	'weight_decay': 0.0}
+	]
+	return grouped_params
+
+def test(
+	model_type,
+	model,
+	test_loader,
+	output_dir):
+	'''
+	Author: Sungjun Han
+	Description: tests and generates predictions on a teset set
+	'''
+
+	for step, batch in enumerate(test_loader):
+		model.eval()
+
+		#load best model
+		model_checkpoint_path = os.path.join(output_dir, 'checkpoint_'+ args.model_type)
+		model.load_state_dict(torch.load(model_checkpoint_path))
+		
+		if args.use_cuda:
+			model.cuda()
+
+		model.eval()
+		test_pred = []
+		test_labels = []
+		test_loss = 0.
+		with torch.no_grad():
+			if model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
+				hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
+				if args.use_cuda:
+					hyp1 = hyp1.to(device)
+					hyp2 = hyp2.to(device)
+					premise = premise.to(device)
+					label = label.to(device)
+
+				logits, loss = model(premise, hyp1, hyp2, label)
+
+			elif model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
+				input_ids, segment_ids,  masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
+				if args.use_cuda:
+					input_ids = input_ids.to(device)
+					segment_ids = segment_ids.to(device)
+					masks = masks.to(device)
+					label = label.to(device)
+		
+				logits, loss = model(input_ids, segment_ids, masks, label)
+			
+			elif model_type in ['pretrained-transformers-decoder']:
+				if args.use_cuda:
+					batch['input_ids'] = batch['input_ids'].to(device)
+					batch['segment_ids'] = batch['segment_ids'].to(device)
+					batch['masks'] = batch['masks'].to(device)
+					batch['label'] = batch['label'].to(device)
+					batch['input_lengths'] = batch['input_lengths'].to(device)
+					batch['lm_label'] = batch['lm_label'].to(device)
+
+				inputs = {
+				'input_ids': batch['input_ids'],
+				'attention_mask':batch['segment_ids'],
+				'token_type_ids':batch['masks'],
+				'mc_token_ids':batch['input_lengths'] -1,
+				'mc_labels':batch['label'],
+				'labels': batch['lm_label']
+				}
+			
+				logits, loss_mc, loss_lm = model(**inputs)
+				loss = loss_mc + loss_lm
+
+				label = batch['label']
+
+		#update keepr for log liklihood
+		test_loss += loss.mean().item()
+		
+		test_pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+		test_labels.extend(label.tolist())
+
+	test_stats.eval(test_labels,test_pred)
+	test_stats.update('loglikelihood',test_loss)
+	test_stats.print()
+
+	return test_pred, test_stats
+	
+def train(
+	model_type,
+	model,
+	num_epochs
+	optimizer,
+	train_loader, 
+	scheduler,
+	stats,
+	device,
+	grad_norm_clip,
+	evaluate_during_training=False,
+	val_loader=None,
+	val_stats=None,
+	early_stopping = 0,
+	use_cuda=False,
+	output_dir=None):
+	'''
+	Author: Sungjun Han
+	Description: trains on a train set for a given number of epochs
+	'''
+
+	val_accuracy = 0. # for early stop
+	earlyStop = 0
+	for epoch in tqdm(range(num_epochs), desc='epoch'):
+		labels = []
+		pred = []
+		train_loss = 0
+		model.train()
+		model.zero_grad()
+		for step, batch in enumerate(train_loader):
+
+			if model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
+				hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
+				if use_cuda:
+					hyp1 = hyp1.to(device)
+					hyp2 = hyp2.to(device)
+					premise = premise.to(device)
+					label = label.to(device)
+
+				logits, loss = model(premise, hyp1, hyp2, label)
+
+			elif model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
+				input_ids, segment_ids,  masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
+				if use_cuda:
+					input_ids = input_ids.to(device)
+					segment_ids = segment_ids.to(device)
+					masks = masks.to(device)
+					label = label.to(device)
+
+				logits, loss = model(input_ids, segment_ids, masks, label)
+			
+			elif model_type in ['pretrained-transformers-decoder']:
+				if args.use_cuda:
+					batch['input_ids'] = batch['input_ids'].to(device)
+					batch['segment_ids'] = batch['segment_ids'].to(device)
+					batch['masks'] = batch['masks'].to(device)
+					batch['label'] = batch['label'].to(device)
+					batch['input_lengths'] = batch['input_lengths'].to(device)
+					batch['lm_label'] = batch['lm_label'].to(device)
+
+				inputs = {
+				'input_ids': batch['input_ids'],
+				'attention_mask':batch['segment_ids'],
+				'token_type_ids':batch['masks'],
+				'mc_token_ids':batch['input_lengths'] -1,
+				'mc_labels':batch['label'],
+				'labels': batch['lm_label']
+				}
+				
+				logits, loss_mc, loss_lm = model(**inputs)
+				loss = loss_mc + loss_lm
+				label = batch['label']
+
+			loss.backward()
+
+			'''
+			implement gradient norm clip 
+			'''
+			if grad_norm_clip:
+				torch.nn.utils.clip_grad_norm_(model.parameters(), grad_norm_clip)
+
+			optimizer.step()
+			if args.scheduler:
+				scheduler.step()
+			optimizer.zero_grad()
+
+			#keep things 
+			train_loss += loss.mean().item()
+			labels.extend(label.tolist())
+			pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+
+		#update keepr for log liklihood
+		stats.update('loglikelihood',train_loss)
+		stats.eval(labels,pred)
+		#print for status update
+		logging.info('\nTrain stats:')
+		stats.print()
+
+		if evaluate_during_training:
+			model, val_stats = evaluate(
+				model_type,
+				model,
+				val_loader,
+				early_stopping,
+				device)
+
+	if evaluate:
+		return model, (stats, val_stats)
+	return model, stats
+
+def evaluate(
+	model_type
+	model, 
+	val_loader,
+	early_stopping,
+	device):
+	'''
+	Author: Sungjun Han
+	Description: evaluates on a validation set, implements EarlyStopping if specified - saves the best model 
+	'''
+	model.eval()
+	with torch.no_grad():
+		labels = []
+		pred = []
+		total_loss = 0
+		for step, batch in enumerate(val_loader):
+			if model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
+				hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
+				if use_cuda:
+					hyp1 = hyp1.to(device)
+					hyp2 = hyp2.to(device)
+					premise = premise.to(device)
+					label = label.to(device)
+
+				logits, loss = model(premise, hyp1, hyp2, label)
+
+			elif model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
+				input_ids, segment_ids, masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
+				if use_cuda:
+					input_ids = input_ids.to(device)
+					segment_ids = segment_ids.to(device)
+					masks = masks.to(device)
+					label = label.to(device)
+
+				logits, loss = model(input_ids, segment_ids, masks, label)
+			
+			elif args.model_type in ['pretrained-transformers-decoder']:
+				if use_cuda:
+					batch['input_ids'] = batch['input_ids'].to(device)
+					batch['segment_ids'] = batch['segment_ids'].to(device)
+					batch['masks'] = batch['masks'].to(device)
+					batch['label'] = batch['label'].to(device)
+					batch['input_lengths'] = batch['input_lengths'].to(device)
+					batch['lm_label'] = batch['lm_label'].to(device)
+
+				inputs = {
+				'input_ids': batch['input_ids'],
+				'attention_mask':batch['segment_ids'],
+				'token_type_ids':batch['masks'],
+				'mc_token_ids':batch['input_lengths'] -1,
+				'mc_labels':batch['label'],
+				'labels': batch['lm_label']
+				}
+				
+				logits, loss_mc, loss_lm = model(**inputs)
+				loss = loss_mc + loss_lm
+
+				label = batch['label']
+
+			#update keepr for log liklihood
+			total_loss += loss.mean().item()
+
+			labels.extend(label.tolist())
+			pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+
+		val_stats.update('loglikelihood',total_loss)
+		val_stats.eval(labels,pred)
+
+		logging.info('\nVal stats:')
+		val_stats.print()
+	
+	return model, val_stats
+
+	#early stopping
+	if early_stopping:
+		current_accuracy = val_stats.keeper['accuracy'][-1]
+		if current_accuracy > val_accuracy:
+			earlyStop = 0
+			torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type))
+
+			val_accuracy = current_accuracy
+			continue 
+
+		earlyStop += 1
+		if args.early_stopping == earlyStop:
+			logging.info('Early stopping criterion met - terminating')
+			break
+
+		logging.info('Early stopping patience {}'.format(earlyStop))
+
+	# if we dont early stop just save the last model 
+	if not args.early_stopping:
+		torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type))
+
+
 def main(args):
 
 	utils.set_seed(args.seed)
@@ -136,7 +612,7 @@ def main(args):
 	logger.info('TEST DATA PATH:')
 	logger.info(args.test_tsv)
 
-	# make output directory
+	# make output directory if it does not exist 
 	output_dir = os.path.join(args.output_dir, '{}_{}'.format('checkpoint', args.model_type))
 	if not os.path.exists(output_dir):
 		os.makedirs(output_dir)
@@ -144,99 +620,26 @@ def main(args):
 	logger.info('OUTPUT DATA PATH:')
 	logger.info(output_dir)
 
+	#initialize metric keeper 
+	stats = metrics.MetricKeeper(args.eval_measure.split(','))
+	if evaluate:
+		val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+
 	if  args.model_type == 'BoW':
-		logger.info('BASELINE CLASSIFIER: {}'.format(args.bow_classifier))
-		if args.bow_classifier == 'maxent':
-			maxent_kwargs = {
-							'num_features': 2 if args.bow_bidirectional else 1,
-					 		'num_classes' : 2,
-							'step_size':args.bow_me_step_size,
-							'num_buckets': args.bow_me_num_buckets,
-							'lr' : args.bow_me_lr,
-							'reg' : args.bow_me_regularization,
-							'reg_lambda' : args.bow_me_regularization_coef}
+		model = baseline_initialize_model(args)
 
-			logger.info(maxent_kwargs)
-			classifier = MaxEnt(**maxent_kwargs)
-
-		elif args.bow_classifier == 'lgr':
-
-			lgr_kwargs = {
-					'num_features': 2 if args.bow_bidirectional else 1,
-					'lr' : args.bow_lgr_lr,
-					'bias' : args.bow_lgr_bias,
-					'regularization' : args.bow_lgr_regularization,
-					'lmda' : args.bow_lgr_regularization_coef
-			}
-
-			logger.info(lgr_kwargs)
-			classifier = LogisticRegression(**lgr_kwargs)
-
-		elif args.bow_classifier == 'prc':
-
-			prc_kwargs = {
-					'num_features': 2 if args.bow_bidirectional else 1,
-					'lr' : args.bow_prc_lr,
-					'bias' : args.bow_prc_bias}
-
-			logger.info(prc_kwargs)
-			classifier = Perceptron(**prc_kwargs)
-
-
+		# define dataset
 		train_dataset = AlphaDatasetBaseline(args.train_tsv, args.max_samples_per_epoch)
-		logger.info('Train Dataset has %d samples' % len(train_dataset))
-		stats = metrics.MetricKeeper(args.eval_measure.split(','))
-
 		test_dataset = AlphaDatasetBaseline(args.test_tsv)
-		logger.info('Test Dataset has %d samples' % len(test_dataset))
-		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
-		# for baseline 
-		model_kwargs = {
-			 'classifier': classifier,
-			 'sim_function': args.bow_sim_function,
-			 'weight_function': args.bow_weight_function,
-			 'max_cost' : args.bow_max_cost,
-			 'bidirectional' : args.bow_bidirectional,
-			 'lemmatize':args.bow_lemmatize,}
-		model = BagOfWords(**model_kwargs)
+		# train 
+		model, stats = baseline_train(model, train_dataset, stats, verbose=True)
 
-		logger.info('FITTING')
-		starttime = time.time()
-		
-		pred, L = model.fit_transform(train_dataset, num_epochs=args.num_epochs, ll=True)
-
-		logger.info('Fitting and Transforming: BoW took {:.2f}s - {:.5f}s per data point'.format(starttime - time.time(), 
-			(starttime - time.time()) / len(train_dataset)))
-
-		#convert to predictions
-		y_pred = np.argmax(pred,axis=-1)
-		y = model.labels 
-
-		#update keepr for log liklihood
-		for epoch, l in enumerate(L):
-			stats.update('loglikelihood',l)
-		stats.eval(y,y_pred)
-
-		#print to log
-		for eval_name, eval_history in stats.keeper.items():
-			logger.info('Train {} - {}'.format( eval_name, eval_history))
-
-		#evaluate on test set 
-		pred = model.transform(test_dataset)
-
-		#convert to predictions
-		y_pred = np.argmax(pred,axis=-1)
-
-		y = np.array(test_dataset.dataset['label'])
-		test_stats.eval(y, y_pred)
-
-		#save prediction 
-		with open(os.path.join(output_dir, 'predictions.txt'),'w') as f:
-			for p in y_pred:
-				f.write(str(p) + '\n')
+		#test 
+		test_pred, test_stats  = baseline_test(model, test_dataset, test_stats)
 	
-	elif args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
+	elif args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:\
+		#initialize tokenizer 
 		vocab = json.load(open(args.vocab, 'r'))
 		if args.tokenizer == 'regular':
 			#sanity check
@@ -249,16 +652,12 @@ def main(args):
 		#initialize dataloader
 		train_dataset = AlphaDataset(args.train_tsv, tokenizer, args.max_samples_per_epoch)
 		test_dataset = AlphaDataset(args.test_tsv, tokenizer)
-		
-		#initialize test metric
-		stats = metrics.MetricKeeper(args.eval_measure.split(','))
-		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 		#initialize val-dataloader
 		val_dataset = None
 		if args.evaluate:
 			val_dataset = AlphaDataset(args.val_tsv, tokenizer, args.max_samples_per_epoch)
-			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+
 
 		train_loader, test_loader, val_loader =load_dataloader_base(
 								train_dataset, 
@@ -269,36 +668,7 @@ def main(args):
 								drop_last = True, 
 								num_workers = args.num_workers)
 
-		#initialize model 
-		if  args.model_type == 'StaticEmb-mixture':
-			padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
-			embedding_matrix = build_embedding_glove(vocab, args.glove_model,padding_idx, args.freeze_embedding)
-			model = StaticEmbeddingMixture(embedding_matrix,
-					 args.se_hidden_encoder_size,
-					 args.se_hidden_decoder_size,
-					 args.se_num_encoder_layers,
-					 args.se_num_decoder_layers,
-					 args.dropout,
-					 args.sem_pooling)
-
-		elif args.model_type == 'StaticEmb-rnn':
-			padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
-			embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx, args.freeze_embedding)
-			model = StaticEmbeddingRNN (embedding_matrix,
-					 args.se_hidden_encoder_size,
-					 args.se_hidden_decoder_size,
-					 args.se_num_encoder_layers,
-					 args.se_num_decoder_layers,
-					 args.dropout,
-					 args.sernn_bidirectional)
-					 
-		
-		elif args.model_type == 'StaticEmb-cnn':
-			padding_idx = tokenizer.vocab['token2idx'][tokenizer.pad_token]
-			embedding_matrix = build_embedding_glove(vocab, args.glove_model, padding_idx, args.freeze_embedding)
-			model = StaticEmbeddingCNN(embedding_matrix,
-					 args.se_hidden_decoder_size,
-					 args.dropout)
+		model = sem_initialize_model(args)
 	
 	elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling', 'pretrained-transformers-decoder']:
 
@@ -328,15 +698,11 @@ def main(args):
 		dataset_kwargs['data_path'] = args.test_tsv
 		test_dataset = AlphaDatasetTransformer(**dataset_kwargs)
 
-		stats = metrics.MetricKeeper(args.eval_measure.split(','))
-		test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
-
 		#initialize val-dataloader
 		val_dataset = None
 		if args.evaluate:
 			dataset_kwargs['data_path'] = args.val_tsv
 			val_dataset = AlphaDatasetTransformer(**dataset_kwargs)
-			val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 		train_loader, test_loader, val_loader =load_dataloader_transformer(
 											train_dataset, 
@@ -346,33 +712,16 @@ def main(args):
 											shuffle=args.shuffle, 
 											drop_last = True, 
 											num_workers = args.num_workers)
-
-		#load models
-		if args.model_type == 'pretrained-transformers-cls':
-			if 'gpt' in args.pretrained_name:
-				raise ValueError('we cannot use CLS classifier with GPT2')
-
-			model = PretrainedTransformerCLS(args.pretrained_name)
-			
-		elif args.model_type == 'pretrained-transformers-pooling':
-			if 'gpt' in args.pretrained_name:
-				raise ValueError('we cannot use pooling classifier with GPT2')
-
-			# fix this so that it pools 
-			model = PretrainedTransformerPooling(args.pretrained_name)
-
-		elif args.model_type == 'pretrained-transformers-decoder':
-			if 'gpt' not in args.pretrained_name:
-				raise ValueError('for now we only support gpt model')
-				
-			model = PretrainedDecoderTransformer(args.pretrained_name)
-			model.model.resize_token_embeddings(len(tokenizer))
 		
+		model = transformer_initialize_model(args)
+
 	else:
 		raise ValueError('model type not recognized')
 
 	if args.model_type != 'BoW':
-
+		'''
+		DEFINE OPTIMIZER, SCHEDULER, DEVICE 
+		'''
 		if args.use_cuda:
 			if not torch.cuda.is_available():
 				print('use_cuda=True but cuda is not available')
@@ -382,7 +731,6 @@ def main(args):
 			device = torch.device('cpu')
 
 		#group parmaeters if we are weight decaying
-		
 		if args.weight_decay:
 			parameters = prepare_model_parameters_weight_decay(model.named_parameters())
 		else:
@@ -400,262 +748,41 @@ def main(args):
 			pass
 
 		'''
-		TRAINING 
+		TRAIN and TESt
 		'''
-
-		val_accuracy = 0. # for early stop
-		earlyStop = 0
-		for epoch in tqdm(range(args.num_epochs), desc='epoch'):
-			labels = []
-			pred = []
-			train_loss = 0
-			model.train()
-			model.zero_grad()
-			for step, batch in enumerate(train_loader):
-
-				if args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
-					hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
-					if args.use_cuda:
-						hyp1 = hyp1.to(device)
-						hyp2 = hyp2.to(device)
-						premise = premise.to(device)
-						label = label.to(device)
-
-					logits, loss = model(premise, hyp1, hyp2, label)
-
-				elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
-					input_ids, segment_ids,  masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
-					if args.use_cuda:
-						input_ids = input_ids.to(device)
-						segment_ids = segment_ids.to(device)
-						masks = masks.to(device)
-						label = label.to(device)
-
-					logits, loss = model(input_ids, segment_ids, masks, label)
-				
-				elif args.model_type in ['pretrained-transformers-decoder']:
-					if args.use_cuda:
-						batch['input_ids'] = batch['input_ids'].to(device)
-						batch['segment_ids'] = batch['segment_ids'].to(device)
-						batch['masks'] = batch['masks'].to(device)
-						batch['label'] = batch['label'].to(device)
-						batch['input_lengths'] = batch['input_lengths'].to(device)
-						batch['lm_label'] = batch['lm_label'].to(device)
-
-					inputs = {
-					'input_ids': batch['input_ids'],
-					'attention_mask':batch['segment_ids'],
-					'token_type_ids':batch['masks'],
-					'mc_token_ids':batch['input_lengths'] -1,
-					'mc_labels':batch['label'],
-					'labels': batch['lm_label']
-					}
-					
-					logits, loss_mc, loss_lm = model(**inputs)
-					loss = loss_mc + loss_lm
-					label = batch['label']
-
-				loss.backward()
-
-				'''
-				implement gradient norm clip 
-				'''
-
-				if args.grad_norm_clip:
-					torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_norm_clip)
-
-				'''
-				implement gradient accumulation 
-				'''
-				optimizer.step()
-				if args.scheduler:
-					scheduler.step()
-				optimizer.zero_grad()
-
-				#keep things 
-				train_loss += loss.mean().item()
-				labels.extend(label.tolist())
-				pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
-
-
-			#update keepr for log liklihood
-			stats.update('loglikelihood',train_loss)
-			stats.eval(labels,pred)
-			#print for status update
-			logging.info('\nTrain stats:')
-			stats.print()
-
-			'''
-			VALIDATION 
-			'''
-			if args.evaluate:
-				model.eval()
-				with torch.no_grad():
-					labels = []
-					pred = []
-					total_loss = 0
-					for step, batch in enumerate(val_loader):
-						if args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
-							hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
-							if args.use_cuda:
-								hyp1 = hyp1.to(device)
-								hyp2 = hyp2.to(device)
-								premise = premise.to(device)
-								label = label.to(device)
-
-							logits, loss = model(premise, hyp1, hyp2, label)
-
-						elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
-							input_ids, segment_ids, masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
-							if args.use_cuda:
-								input_ids = input_ids.to(device)
-								segment_ids = segment_ids.to(device)
-								masks = masks.to(device)
-								label = label.to(device)
-
-							logits, loss = model(input_ids, segment_ids, masks, label)
-						
-						elif args.model_type in ['pretrained-transformers-decoder']:
-							if args.use_cuda:
-								batch['input_ids'] = batch['input_ids'].to(device)
-								batch['segment_ids'] = batch['segment_ids'].to(device)
-								batch['masks'] = batch['masks'].to(device)
-								batch['label'] = batch['label'].to(device)
-								batch['input_lengths'] = batch['input_lengths'].to(device)
-								batch['lm_label'] = batch['lm_label'].to(device)
-
-							inputs = {
-							'input_ids': batch['input_ids'],
-							'attention_mask':batch['segment_ids'],
-							'token_type_ids':batch['masks'],
-							'mc_token_ids':batch['input_lengths'] -1,
-							'mc_labels':batch['label'],
-							'labels': batch['lm_label']
-							}
-							
-							logits, loss_mc, loss_lm = model(**inputs)
-							loss = loss_mc + loss_lm
-
-							label = batch['label']
-
-						#update keepr for log liklihood
-						total_loss += loss.mean().item()
-
-						labels.extend(label.tolist())
-						pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
-
-					val_stats.update('loglikelihood',total_loss)
-					val_stats.eval(labels,pred)
-
-					logging.info('\nVal stats:')
-					val_stats.print()
-
-				#early stopping
-				if args.early_stopping:
-					current_accuracy = val_stats.keeper['accuracy'][-1]
-					if current_accuracy > val_accuracy:
-						earlyStop = 0
-						torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
-
-						val_accuracy = current_accuracy
-						continue 
-
-					earlyStop += 1
-					if args.early_stopping == earlyStop:
-						logging.info('Early stopping criterion met - terminating')
-						break
-
-					logging.info('Early stopping patience {}'.format(earlyStop))
-
-			# if we dont early stop just save the last model 
-			if not args.early_stopping:
-				torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ args.model_type))
-		'''
-
-		TEST 
-
-
-		'''
+		model, stats  = train(args.model_type,
+							model, 
+							args.num_epochs, 
+							optimizer,
+							train_loader, 
+							scheduler, 
+							stats, 
+							device,
+							args.grad_norm_clip,
+							evaluate_during_training = args.evaluate,
+							val_loader=val_loader if val_loader else None,
+							val_stats=val_stats if val_loader else None,
+							early_stopping = args.early_stopping,
+							use_cuda=args.use_cuda,
+							output_dir=output_dir)
+		if args.evaluate
+			stats, val_stats = stats
+								
 		logging.info('Testing...')
-		for step, batch in enumerate(test_loader):
-			model.eval()
-
-			#load best model
-			model_checkpoint_path = os.path.join(output_dir, 'checkpoint_'+ args.model_type)
-			model.load_state_dict(torch.load(model_checkpoint_path))
-			
-			if args.use_cuda:
-				model.cuda()
-
-			model.eval()
-			test_pred = []
-			test_labels = []
-			test_loss = 0.
-			with torch.no_grad():
-				if args.model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
-					hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
-					if args.use_cuda:
-						hyp1 = hyp1.to(device)
-						hyp2 = hyp2.to(device)
-						premise = premise.to(device)
-						label = label.to(device)
-
-					logits, loss = model(premise, hyp1, hyp2, label)
-
-				elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
-					input_ids, segment_ids,  masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
-					if args.use_cuda:
-						input_ids = input_ids.to(device)
-						segment_ids = segment_ids.to(device)
-						masks = masks.to(device)
-						label = label.to(device)
-			
-					logits, loss = model(input_ids, segment_ids, masks, label)
-				
-				elif args.model_type in ['pretrained-transformers-decoder']:
-					if args.use_cuda:
-						batch['input_ids'] = batch['input_ids'].to(device)
-						batch['segment_ids'] = batch['segment_ids'].to(device)
-						batch['masks'] = batch['masks'].to(device)
-						batch['label'] = batch['label'].to(device)
-						batch['input_lengths'] = batch['input_lengths'].to(device)
-						batch['lm_label'] = batch['lm_label'].to(device)
-
-					inputs = {
-					'input_ids': batch['input_ids'],
-					'attention_mask':batch['segment_ids'],
-					'token_type_ids':batch['masks'],
-					'mc_token_ids':batch['input_lengths'] -1,
-					'mc_labels':batch['label'],
-					'labels': batch['lm_label']
-					}
-				
-					logits, loss_mc, loss_lm = model(**inputs)
-					loss = loss_mc + loss_lm
-
-					label = batch['label']
-
-			#update keepr for log liklihood
-			test_loss += loss.mean().item()
-			
-			test_pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
-			test_labels.extend(label.tolist())
-
-		test_stats.eval(test_labels,test_pred)
-		test_stats.update('loglikelihood',test_loss)
-		test_stats.print()
-
-		#save prediction 
-		with open(os.path.join(output_dir, 'predictions.txt'),'w') as f:
-			for p in test_pred:
-				f.write(str(p) + '\n')
-
-
+		test_pred, test_stats = test(
+							model_type,
+							model,
+							test_loader,
+							output_dir)
  
 	'''
-
-	SAVE STATS
+	SAVE STATS and PREDICTIONS
 	'''
+	#save prediction 
+	with open(os.path.join(output_dir, 'predictions.txt'),'w') as f:
+		for p in test_pred:
+			f.write(str(p) + '\n')
+
 	checkpoint = {
 	'stats': stats.keeper,
 	'val_stats': val_stats.keeper if args.evaluate else None,
@@ -664,17 +791,6 @@ def main(args):
 	}
 	with open(os.path.join(output_dir, 'stats.json'), 'w') as f:
 		json.dump(checkpoint, f, indent=4)
-
-def prepare_model_parameters_weight_decay(named_parameters):
-	no_decay = ['bias', 'LayerNorm.weight']
-	grouped_params = [
-	{'params': [p for n, p in named_parameters if not any(nd in n for nd in no_decay)],
-	'weight_decay': args.weight_decay},
-	{'params': [p for n, p in named_parameters if any(nd in n for nd in no_decay)],
-	'weight_decay': 0.0}
-	]
-	return grouped_params
-
 
 if __name__ == '__main__':
 	args = parser.parse_args()

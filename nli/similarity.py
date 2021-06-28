@@ -4,7 +4,8 @@ import math
 
 def levenshtein(x,y):
 	'''
-	levenshtein distance 
+	Author: Sungjun Han  
+	Description: computes levenshtein distance 
 	'''
 	dp = [[0]*(len(y)+1) for _ in range(len(x)+1)] 
 	for i in range(1, len(x)+1):

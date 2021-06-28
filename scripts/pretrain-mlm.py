@@ -1,4 +1,7 @@
-''' pretraining BERT '''
+'''
+Author: Anastasiia 
+Description: for pretraining BERT
+'''
 # tutorial by James Briggs used:
 # https://towardsdatascience.com/masked-language-modelling-with-bert-7d49793e5d2c
 
