@@ -293,7 +293,6 @@ def transformer_initialize_model(args):
 			raise ValueError('for now we only support gpt model')
 			
 		model = PretrainedDecoderTransformer(args.pretrained_name)
-		model.model.resize_token_embeddings(len(tokenizer))
 	return model 
 
 def prepare_model_parameters_weight_decay(named_parameters):
@@ -315,7 +314,9 @@ def test(
 	model_type,
 	model,
 	test_loader,
-	output_dir):
+	output_dir,
+	device,
+	use_cuda=False):
 	'''
 	Author: Sungjun Han
 	Description: tests and generates predictions on a teset set
@@ -328,7 +329,7 @@ def test(
 		model_checkpoint_path = os.path.join(output_dir, 'checkpoint_'+ args.model_type)
 		model.load_state_dict(torch.load(model_checkpoint_path))
 		
-		if args.use_cuda:
+		if use_cuda:
 			model.cuda()
 
 		model.eval()
@@ -338,7 +339,7 @@ def test(
 		with torch.no_grad():
 			if model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
 				hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
-				if args.use_cuda:
+				if use_cuda:
 					hyp1 = hyp1.to(device)
 					hyp2 = hyp2.to(device)
 					premise = premise.to(device)
@@ -348,7 +349,7 @@ def test(
 
 			elif model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling']:
 				input_ids, segment_ids,  masks, label = batch['input_ids'], batch['segment_ids'], batch['masks'], batch['label']		
-				if args.use_cuda:
+				if use_cuda:
 					input_ids = input_ids.to(device)
 					segment_ids = segment_ids.to(device)
 					masks = masks.to(device)
@@ -357,7 +358,7 @@ def test(
 				logits, loss = model(input_ids, segment_ids, masks, label)
 			
 			elif model_type in ['pretrained-transformers-decoder']:
-				if args.use_cuda:
+				if use_cuda:
 					batch['input_ids'] = batch['input_ids'].to(device)
 					batch['segment_ids'] = batch['segment_ids'].to(device)
 					batch['masks'] = batch['masks'].to(device)
@@ -394,7 +395,7 @@ def test(
 def train(
 	model_type,
 	model,
-	num_epochs
+	num_epochs,
 	optimizer,
 	train_loader, 
 	scheduler,
@@ -443,7 +444,7 @@ def train(
 				logits, loss = model(input_ids, segment_ids, masks, label)
 			
 			elif model_type in ['pretrained-transformers-decoder']:
-				if args.use_cuda:
+				if use_cuda:
 					batch['input_ids'] = batch['input_ids'].to(device)
 					batch['segment_ids'] = batch['segment_ids'].to(device)
 					batch['masks'] = batch['masks'].to(device)
@@ -473,7 +474,7 @@ def train(
 				torch.nn.utils.clip_grad_norm_(model.parameters(), grad_norm_clip)
 
 			optimizer.step()
-			if args.scheduler:
+			if scheduler:
 				scheduler.step()
 			optimizer.zero_grad()
 
@@ -490,19 +491,22 @@ def train(
 		stats.print()
 
 		if evaluate_during_training:
-			model, val_stats = evaluate(
+			model, val_stats, terminate = evaluate(
 				model_type,
 				model,
 				val_loader,
 				early_stopping,
 				device)
+		
+			if terminate:
+				break
 
 	if evaluate:
 		return model, (stats, val_stats)
 	return model, stats
 
 def evaluate(
-	model_type
+	model_type,
 	model, 
 	val_loader,
 	early_stopping,
@@ -511,6 +515,8 @@ def evaluate(
 	Author: Sungjun Han
 	Description: evaluates on a validation set, implements EarlyStopping if specified - saves the best model 
 	'''
+	
+	terminate = False 
 	model.eval()
 	with torch.no_grad():
 		labels = []
@@ -537,7 +543,7 @@ def evaluate(
 
 				logits, loss = model(input_ids, segment_ids, masks, label)
 			
-			elif args.model_type in ['pretrained-transformers-decoder']:
+			elif model_type in ['pretrained-transformers-decoder']:
 				if use_cuda:
 					batch['input_ids'] = batch['input_ids'].to(device)
 					batch['segment_ids'] = batch['segment_ids'].to(device)
@@ -556,7 +562,7 @@ def evaluate(
 				}
 				
 				logits, loss_mc, loss_lm = model(**inputs)
-				loss = loss_mc + loss_lm
+				loss = 2*loss_mc + loss_lm
 
 				label = batch['label']
 
@@ -571,8 +577,6 @@ def evaluate(
 
 		logging.info('\nVal stats:')
 		val_stats.print()
-	
-	return model, val_stats
 
 	#early stopping
 	if early_stopping:
@@ -582,19 +586,21 @@ def evaluate(
 			torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type))
 
 			val_accuracy = current_accuracy
-			continue 
+			return model, val_stats, terminate 
 
 		earlyStop += 1
-		if args.early_stopping == earlyStop:
+		if early_stopping == earlyStop:
 			logging.info('Early stopping criterion met - terminating')
-			break
+			terminate = True 
+			return model, val_stats, terminate 
 
 		logging.info('Early stopping patience {}'.format(earlyStop))
 
 	# if we dont early stop just save the last model 
-	if not args.early_stopping:
+	else:
 		torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type))
 
+	return model, val_stats, terminate  
 
 def main(args):
 
@@ -714,7 +720,7 @@ def main(args):
 											num_workers = args.num_workers)
 		
 		model = transformer_initialize_model(args)
-
+		model.model.resize_token_embeddings(len(tokenizer))
 	else:
 		raise ValueError('model type not recognized')
 
@@ -740,40 +746,43 @@ def main(args):
 		if args.optimizer == 'adam':
 			optimizer = torch.optim.Adam(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
 
-		#scheduler 
+		#scheduler
+		scheduler = None 
 		if args.scheduler:
 			num_training_steps = int((len(train_loader)//args.batch_size)*args.num_epochs)
 			num_warmup_steps = int(num_training_steps*args.num_warming_steps)
 			scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps,num_training_steps)
-			pass
+			
 
 		'''
 		TRAIN and TESt
 		'''
-		model, stats  = train(args.model_type,
-							model, 
-							args.num_epochs, 
-							optimizer,
-							train_loader, 
-							scheduler, 
-							stats, 
-							device,
-							args.grad_norm_clip,
+		model, stats  = train(model_type = args.model_type,
+							model = model, 
+							num_epochs = args.num_epochs, 
+							optimizer = optimizer,
+							train_loader = train_loader, 
+							scheduler = scheduler, 
+							stats  = stats, 
+							device = device,
+							grad_norm_clip = args.grad_norm_clip,
 							evaluate_during_training = args.evaluate,
 							val_loader=val_loader if val_loader else None,
 							val_stats=val_stats if val_loader else None,
 							early_stopping = args.early_stopping,
 							use_cuda=args.use_cuda,
 							output_dir=output_dir)
-		if args.evaluate
+		if args.evaluate:
 			stats, val_stats = stats
 								
 		logging.info('Testing...')
 		test_pred, test_stats = test(
-							model_type,
-							model,
-							test_loader,
-							output_dir)
+							model_type = model_type,
+							model = model,
+							test_loader = test_loader,
+							output_dir = output_dir,
+							device = device, 
+							use_cuda=args.use_cuda)
  
 	'''
 	SAVE STATS and PREDICTIONS

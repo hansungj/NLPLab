@@ -119,13 +119,8 @@ class PretrainedDecoderTransformer(nn.Module):
 		config.num_labels = 1
 		config.summary_first_dropout = dropout
 		self.model = GPT2DoubleHeadsModel.from_pretrained(model_name, config=config)
-		self.loss_fn = nn.CrossEntropyLoss()
+		self.loss_fn = nn.BCEWithLogitsLoss()
 	def forward(self, **kwargs):
-		'''
-		we have the inputs 
-	
-
-		'''
 
 		labels  = kwargs.pop('mc_labels')
 		output = self.model(**kwargs)
