@@ -376,7 +376,7 @@ def test(
 				}
 			
 				logits, loss_mc, loss_lm = model(**inputs)
-				loss = loss_mc + loss_lm
+				loss = 2*loss_mc + loss_lm
 
 				label = batch['label']
 
@@ -462,7 +462,7 @@ def train(
 				}
 				
 				logits, loss_mc, loss_lm = model(**inputs)
-				loss = loss_mc + loss_lm
+				loss = 2*loss_mc + loss_lm
 				label = batch['label']
 
 			loss.backward()
