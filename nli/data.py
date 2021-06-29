@@ -186,6 +186,10 @@ class AlphaDatasetTransformer(Dataset):
 
 		segment_ids = [0]*len(tokens_id)
 
+		#for gpt 2 language modelling 
+		targets = tokens_id.copy() # we only do language modelling for the observation 
+		targets[0] = -100 
+
 		# if we are working with a transformer decoder 
 		if not self.cls_at_start:
 			tokens.append(self.tokenizer.eos_token)
@@ -194,13 +198,10 @@ class AlphaDatasetTransformer(Dataset):
 		tokens = self.tokenizer.tokenize(hypotheses)
 		hyp_id = self.tokenizer.convert_tokens_to_ids(tokens)
 
+		targets.extend([-100]*len(hyp_id)) #we  only do language modelling for the observation 
 		segment_ids.extend([1]*len(hyp_id))
 		tokens_id.extend(hyp_id)
 		masks = [1]*len(tokens_id)
-
-		#for gpt 2 language modelling 
-		targets = tokens_id.copy()
-		targets[0] = -100
 
 		#label to one hot encoding
 		# label = [0]*2

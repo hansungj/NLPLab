@@ -19,7 +19,7 @@ my hypothesis is that  even thought (2) is essentially the same as (3) , the cor
 
 # Fine-tuning Stage
 
-There are different ways to use the trained language model for classification. 
+There are different ways of using the trained language model for classification. 
 
 1. The most interesting perspective is to test the ability of the model's zero shot-capabiltiy. This can be implemented through comparing the probabilty 
 assigned to the [obs1 hyp obs2] for each hypothesis and choosing  the hypothesis that scored higher by the languagem model. This can be further made sophisticated
