@@ -192,8 +192,8 @@ class LMClassificationDataset(Dataset):
 		return self.max_samples
 
 	def __getitem__(self, idx):
-		story1 = [self.data['obs1'][idx], self.data['hyp1'][idx], self.data['obs2'][idx]]
-		story2 = [self.data['obs1'][idx], self.data['hyp2'][idx], self.data['obs2'][idx]]
+        story1 = [self.data['obs1'][idx], self.data['hyp1'][idx], self.data['obs2'][idx]]
+        story2 = [self.data['obs1'][idx], self.data['hyp2'][idx], self.data['obs2'][idx]]
 
         story1_tokens_id, story1_masks, story1_reference = self.process_story(story1)
         story2_tokens_id, story2_masks, story2_reference = self.process_story(story2)
