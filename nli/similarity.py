@@ -20,6 +20,7 @@ def levenshtein(x,y):
 
 def distributional(x,y):
 	'''
+	Author: Anastasiia 
 	check coocurrence value
 	'''
 	dist = 0
@@ -32,6 +33,7 @@ def distributional(x,y):
 
 def cosine(x,y):
 	'''
+	Author: Anastasiia 
 	cosine tokens' distance
 	'''
 	dist = 0
@@ -54,9 +56,9 @@ def cosine(x,y):
 	dist = dist / (x[0] * y[0])
 	return dist
 
-#deprecate?
 def euclidian(x,y):
 	'''
+	Author: Anastasiia 
 	euclidian tokens' distance
 	'''
 	dist = 0
