@@ -23,7 +23,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 import nli.utils as utils 
-from nli.data import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, load_dataloader_base, load_dataloader_transformer
+from nli.dataloader import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, load_dataloader_base, load_dataloader_transformer
 import nli.preprocess as preprocess
 import nli.metrics as metrics
 from nli.tokenization import WhiteSpaceTokenizer
@@ -269,7 +269,7 @@ def sem_initialize_model(args):
 	
 	return model 
 
-def transformer_initialize_model(args):
+def transformer_initialize_model(args, vocab_size = None):
 	'''
 	Author: Sungjun Han
 	Description: initializes transformer models
@@ -282,17 +282,20 @@ def transformer_initialize_model(args):
 		model = PretrainedTransformerCLS(args.pretrained_name)
 		
 	elif args.model_type == 'pretrained-transformers-pooling':
-		if 'gpt' in args.pretrained_name:
-			raise ValueError('we cannot use pooling classifier with GPT2')
 
-		# fix this so that it pools 
-		model = PretrainedTransformerPooling(args.pretrained_name)
+		model = PretrainedTransformerPooling(args.pretrained_name) # mean pooling 
 
 	elif args.model_type == 'pretrained-transformers-decoder':
 		if 'gpt' not in args.pretrained_name:
 			raise ValueError('for now we only support gpt model')
 			
-		model = PretrainedDecoderTransformer(args.pretrained_name)
+		model = PretrainedDecoderTransformerCLS(args.pretrained_name)
+
+	elif args.model_type == 'pretrained-transformers-decoder-dual':
+		if 'gpt' not in args.pretrained_name:
+			raise ValueError('for now we only support gpt model')
+
+		model = PretrainedDecoderTransformerDual(args.pretrained_name, vocab_size = vocab_size, pooling_type = None)	 # none means mean pooling 
 	return model 
 
 def prepare_model_parameters_weight_decay(named_parameters):
@@ -421,7 +424,7 @@ def train(
 		train_loss = 0
 		model.train()
 		model.zero_grad()
-		for step, batch in enumerate(train_loader):
+		for step, batch in enumerate(tqdm(train_loader, desc ='train-step')):
 
 			if model_type in ['StaticEmb-mixture', 'StaticEmb-rnn', 'StaticEmb-cnn']:
 				hyp1, hyp2, premise, label = batch['hyp1'], batch['hyp2'], batch['obs'], batch['label']		
@@ -441,7 +444,7 @@ def train(
 					masks = masks.to(device)
 					label = label.to(device)
 
-				logits, loss = model(input_ids, segment_ids, masks, label)
+				logits, loss = model(input_ids, segment_ids, masks, y=label)
 			
 			elif model_type in ['pretrained-transformers-decoder']:
 				if use_cuda:
@@ -450,20 +453,23 @@ def train(
 					batch['masks'] = batch['masks'].to(device)
 					batch['label'] = batch['label'].to(device)
 					batch['input_lengths'] = batch['input_lengths'].to(device)
-					batch['lm_label'] = batch['lm_label'].to(device)
 
 				inputs = {
 				'input_ids': batch['input_ids'],
 				'attention_mask':batch['segment_ids'],
 				'token_type_ids':batch['masks'],
 				'mc_token_ids':batch['input_lengths'] -1,
-				'mc_labels':batch['label'],
-				'labels': batch['lm_label']
+				'labels':batch['label']
 				}
 				
-				logits, loss_mc, loss_lm = model(**inputs)
-				loss = 2*loss_mc + loss_lm
+				logits, loss = model(**inputs)
 				label = batch['label']
+			
+			elif model_type in ['pretrained-transformers-decoder-dual']:
+				'''
+				here implement the dual encoder archiecture for gpt2
+				'''
+				pass 
 
 			loss.backward()
 
@@ -565,6 +571,12 @@ def evaluate(
 				loss = 2*loss_mc + loss_lm
 
 				label = batch['label']
+			
+			elif model_type in ['gpt2-zeroshot']:
+				if use_cuda:
+					batch['input_ids_1'] = batch['input_ids_1'].to(device)
+					batch['input_ids_2'] = batch['input_ids_2'].to(device)
+					batch['masks'] = batch['masks'].to(device)
 
 			#update keepr for log liklihood
 			total_loss += loss.mean().item()
@@ -719,8 +731,8 @@ def main(args):
 											drop_last = True, 
 											num_workers = args.num_workers)
 		
-		model = transformer_initialize_model(args)
-		model.model.resize_token_embeddings(len(tokenizer))
+		model = transformer_initialize_model(args, vocab_size = len(tokenizer))
+		# model.model.resize_token_embeddings(len(tokenizer))
 	else:
 		raise ValueError('model type not recognized')
 
