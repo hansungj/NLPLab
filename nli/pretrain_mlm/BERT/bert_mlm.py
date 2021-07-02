@@ -6,11 +6,16 @@ import torch
 
 class BertMLM(torch.nn.Module):
 
-	def __init__(self, model_name='bert-base-uncased'):
+	def __init__(self, model_name, tokenizer):
 
 		super().__init__()
 
-		self.config = BertConfig.from_pretrained(model_name) #output_hidden_states=True, output_attentions=True)
+		#if model_name == 'bert-base-uncased':
+			#self.config = BertConfig.from_pretrained(model_name, vocab_size = tokenizer.vocab_size + 1) #output_hidden_states=True, output_attentions=True)
+		#else:
+			#self.config = BertConfig.from_pretrained(model_name) 
+		
+		self.config = BertConfig.from_pretrained(model_name) 
 		self.model = BertForMaskedLM.from_pretrained(model_name, config=self.config)
 		
 		#wrapped_model = bert_model.base_model
