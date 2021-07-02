@@ -24,3 +24,4 @@ nli/.DS_Store
 *.jsonl
 *.pickle
 data/checkpoint_pretrained-transformers-cls/checkpoint_pretrained-transformers-cls
+scripts/pretrained_BERTmlm/pytorch_model.bin
