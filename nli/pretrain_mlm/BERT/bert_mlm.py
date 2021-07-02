@@ -2,7 +2,7 @@
 
 #from transformers import AutoModel, AutoConfig
 from transformers import BertConfig, BertForMaskedLM
-
+import torch
 
 class BertMLM(torch.nn.Module):
 
@@ -11,7 +11,7 @@ class BertMLM(torch.nn.Module):
 		super().__init__()
 
 		self.config = BertConfig.from_pretrained(model_name) #output_hidden_states=True, output_attentions=True)
-		self.model = BertForMaskedLM.from_pretrained(model_name, config=config)
+		self.model = BertForMaskedLM.from_pretrained(model_name, config=self.config)
 		
 		#wrapped_model = bert_model.base_model
 
