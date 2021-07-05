@@ -1,12 +1,5 @@
 
-<<<<<<< HEAD
-*.pyc
-*.txt
-*.json
-*.lst
-nli_nlp_lab.egg-info/PKG-INFO
-data/.DS_Store
-=======
+
 data/.DS_Store
 .DS_Store
 *.pyc
@@ -16,11 +9,12 @@ nli/.DS_Store
 .DS_Store
 *.lst
 *.json
-*.json
-*.json
->>>>>>> main
+*.pt
 nli/.DS_Store
 .DS_Store
 *.jsonl
 *.pickle
 data/checkpoint_pretrained-transformers-cls/checkpoint_pretrained-transformers-cls
+*.bin
+checkpoint
+*.out

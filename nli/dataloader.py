@@ -16,6 +16,7 @@ import numpy as np
 import re
 import torch
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.distributed import DistributedSampler
 
 from nli.utils import open_tsv_file
 from nli.preprocess import tokenize
@@ -239,6 +240,8 @@ def load_dataloader_base(dataset, test_dataset, val_dataset, batch_size, shuffle
 	Author:  Sungjun Han
 	Description:
 	prepares dataloader for train/val/test for sem-encoder-pooling models 
+
+	distributed not  supported
 	'''
 	dataloader = DataLoader(dataset, 
 		batch_size, 
@@ -264,33 +267,59 @@ def load_dataloader_base(dataset, test_dataset, val_dataset, batch_size, shuffle
 			num_workers=num_workers )
 	return dataloader, test_dataloader, val_dataloader
 
-def load_dataloader_transformer(dataset, test_dataset, val_dataset, batch_size ,shuffle=True, drop_last = True, num_workers=0):
+def prepare_dataloader(dataset, 
+	test_dataset, 
+	val_dataset, 
+	batch_size ,
+	collate_fn,
+	shuffle=True, 
+	drop_last = True, 
+	num_workers=0,
+	distributed = False ):
 	'''
 	Author:  Sungjun Han
 	Description:
 	prepares dataloader for train/val/test for transformer models 
+
+	note that we do not test using with multiple gpus
 	'''
+
+
+	train_shuffle = shuffle # so that we keep this value for valloader
+	sampler = None
+	if distributed:
+		sampler = DistributedSampler(dataset, shuffle=train_shuffle)
+		train_shuffle = False 
+
 	dataloader = DataLoader(dataset, 
 		batch_size, 
-		collate_fn = alpha_collate_fn_transformer, 
-		shuffle=shuffle, 
+		collate_fn = collate_fn, 
+		shuffle=train_shuffle, 
 		drop_last=drop_last,
+		sampler = sampler,
 		num_workers=num_workers )
 
 	test_dataloader = DataLoader(test_dataset, 
 		batch_size, 
-		collate_fn = alpha_collate_fn_transformer, 
+		collate_fn = collate_fn, 
 		shuffle=False, 
 		drop_last=False,
+		sampler = None,
 		num_workers=num_workers )
 
 	val_dataloader = None
+	sampler = None
 	if val_dataset is not None:
+		if distributed:
+			sampler = DistributedSampler(val_dataset, shuffle=shuffle)
+			shuffle = False 
+			
 		val_dataloader = DataLoader(val_dataset, 
 			batch_size, 
-			collate_fn = alpha_collate_fn_transformer, 
+			collate_fn = collate_fn, 
 			shuffle=shuffle, 
 			drop_last=False,
+			sampler = sampler, 
 			num_workers=num_workers)
 
 	return dataloader, test_dataloader, val_dataloader

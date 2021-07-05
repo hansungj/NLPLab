@@ -4,8 +4,6 @@ contains data loader / dataset objects for the pre-training and fine-tuning for 
 
 1. dataloader for pretraining 
 2. dataset object for BookCorpus - for pretraining  
-3. dataset object for fine-tuning 
-4. dataloader for fine-tuning and zero-shot classification 
 '''
 
 import json
@@ -18,6 +16,8 @@ import torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
 
 from datasets import load_dataset # use datasets 
+from nli.dataloader import merge
+from nli.utils import open_tsv_file
 
 class BookCorpusLmLoader(DataLoader):
     '''
@@ -55,28 +55,22 @@ class BookCorpusLmLoader(DataLoader):
         kwargs['collate_fn'] = collate_fn_bookcorpus_lm
         super(BookCorpusLmLoader, self).__init__(self, dataset, **kwargs)
 
-
-def merge(sequences):
-    lengths = [len(seq) for seq in sequences]
-    padded_seqs =  torch.zeros((len(sequences), max(lengths))).long() # gpt tokenizer has pad token id of zero
-    for i, seq in enumerate(sequences):
-        end = lengths[i]
-        padded_seqs[i, :end] = seq[:end]
-    return padded_seqs, lengths
-
 def collate_fn_bookcorpus_lm(data):
 
     batch = {}
     for key in data[0].keys():
         batch[key] = [d[key] for d in data]
     
-    input_ids, input_ids_lengths = merge(batch['input_ids'])
-    target_ids, _ = merge(batch['input_ids'])
-    segment_ids, _ = merge(batch['input_ids'])
+    pad_id = torch.tensor(0)
+    input_ids, input_ids_lengths = merge(batch['input_ids'], pad_id)
+    target_ids, _ = merge(batch['target_ids'], pad_id)
+    segment_ids, _ = merge(batch['segment_ids'], pad_id)
+    masks, _ merge(batch['attention_masks'], torch.tensor(0))
 
     item['input_ids'] = input_ids
     item['target_ids'] = target_ids
     item['segment_ids'] = segment_ids 
+    item['attention_masks']= masks
 
     return item 
 
@@ -158,6 +152,7 @@ class BookCorpusLmDataset(Dataset):
         input_ids.append(ids)
         target_ids.append(ids)
         segment_ids.append([1]*len(input_ids))
+        masks = [1]*len(input_ids)
 
         '''
         implement any truncation if necessary - but pass for now 
@@ -166,96 +161,9 @@ class BookCorpusLmDataset(Dataset):
         d = {}
         d['input_ids'] = torch.tensor(input_ids)
         d['target_ids'] = torch.tensor(target_ids)
-        d['segment_ids'] = torhc.tensor(segment_ids)
+        d['segment_ids'] = torch.tensor(segment_ids)
+        d['attention_masks'] = torch.tensor(masks)
         return d
-
-class LMClassificationDataset(Dataset):
-    '''
-    Author:  Sungjun Han
-    '''
-	def __init__(self,
-				data_path,
-				tokenizer, 
-				max_samples=None,
-				sep_token=None,
-				pad_token_id=None,
-				cls_at_start=True):
-		self.data = open_tsv_file(data_path, dic=True)
-		self.tokenizer = tokenizer
-		self.max_samples = max_samples
-		self.pad_token_id = tokenizer.pad_token_id if pad_token_id is  None else pad_token_id
-		self.sep_token = tokenizer.sep_token if sep_token is None else sep_token
-
-	def __len__(self):
-		if self.max_samples is None:
-			return len(self.data['obs1'])
-		return self.max_samples
-
-	def __getitem__(self, idx):
-        story1 = [self.data['obs1'][idx], self.data['hyp1'][idx], self.data['obs2'][idx]]
-        story2 = [self.data['obs1'][idx], self.data['hyp2'][idx], self.data['obs2'][idx]]
-
-        story1_tokens_id, story1_masks, story1_reference = self.process_story(story1)
-        story2_tokens_id, story2_masks, story2_reference = self.process_story(story2)
-
-		item = {}
-		item['story1_input_ids'] = torch.tensor(story1_tokens_id)
-        item['story2_input_ids'] = torch.tensor(story2_tokens_id)
-		#item['segment_ids'] = torch.tensor(segment_ids)
-		item['story1_masks'] = torch.tensor(story1_masks)
-        item['story2_masks'] = torch.tensor(story2_masks)
-		item['story1_reference'] = story1_reference
-        item['story2_reference'] = story2_reference
-		item['label'] = torch.tensor(self.data['label'][idx])
-		item['pad_id'] = self.pad_token_id
-
-		return item
-    
-    def process_story(self, input):
-
-        story = ' '.join(input)
-		tokens = self.tokenizer.tokenize(story)
-        tokens.insert(0, self.tokenizer.bos_token)
-        tokens.append(self.tokenizer.eos_token)
-		#if we are working with a transformer encoder 
-		tokens_id = self.tokenizer.convert_tokens_to_ids(tokens)
-
-		# for now we do not distinguish segments 
-        '''
-        but one possible way to assign the segments would be to assign segment id =1 for hyp1 and segment id=0 for obs
-        '''
-        #segment_ids = [0]*len(tokens_id)
-		#segment_ids.extend([1]*len(hyp_id))
-
-		masks = [1]*len(tokens_id)
-        reference = '[SEP]'.join(input)
-        return tokens_id, masks, reference 
-
-def lm_transformer_collate_fn(batch):
-    '''
-    Author:  Sungjun Han
-    '''
-	item={}
-	for key in batch[0].keys():
-		item[key] = [d[key] for d in batch] # [item_dic, item_idc ]
-
-	pad_id = item['pad_id'][0]
-	story1_input_ids, story1_input_length = merge(item['story1_input_ids'], pad_id)
-    story2_input_ids, story2_input_length = merge(item['story2_input_ids'], pad_id)
-
-	#segment_ids, _ = merge(item['segment_ids'], pad_id)
-	story1_masks, _ = merge(item['story1_masks'], pad_id)
-    story2_masks, _ = merge(item['story2_masks'], pad_id)
-	label = torch.stack(item['label']).float()
-
-	d = {}
-	d['input_ids'] = (story1_input_ids, story2_input_ids)
-	#d['segment_ids'] = segment_ids
-	d['input_lengths'] = (story1_input_length,story2_input_length)
-	d['masks'] = (story1_masks, story2_masks)
-	d['reference'] = (item['story1_reference'], item['story2_reference'])
-	d['label'] = label
-	return d
 
 if __name__ == '__main__':
     # dataset = load_dataset("bookcorpus")

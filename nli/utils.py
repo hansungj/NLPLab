@@ -48,3 +48,18 @@ def set_seed(seed):
 	torch.manual_seed(seed)
 	if torch.cuda.is_available():
 		torch.cuda.manual_seed_all(seed)
+
+def prepare_model_parameters_weight_decay(named_parameters, weight_decay):
+	'''
+	Author: Sungjun Han
+	Description: groups parameters for weight decay as biases should not be weight decayed 
+	'''
+
+	no_decay = ['bias', 'LayerNorm.weight']
+	grouped_params = [
+	{'params': [p for n, p in named_parameters if not any(nd in n for nd in no_decay)],
+	'weight_decay': weight_decay},
+	{'params': [p for n, p in named_parameters if any(nd in n for nd in no_decay)],
+	'weight_decay': 0.0}
+	]
+	return grouped_params

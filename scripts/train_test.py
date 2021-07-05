@@ -23,13 +23,13 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 import nli.utils as utils 
-from nli.dataloader import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, load_dataloader_base, load_dataloader_transformer
+from nli.utils import prepare_model_parameters_weight_decay
+from nli.dataloader import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, load_dataloader_base, prepare_dataloader, alpha_collate_fn_transformer
 import nli.preprocess as preprocess
 import nli.metrics as metrics
 from nli.tokenization import WhiteSpaceTokenizer
 from nli.embedding import build_embedding_glove
 from nli.models import *
-from nli.models import StaticEmbeddingCNN
 
 from transformers import BertTokenizer, GPT2Tokenizer, get_linear_schedule_with_warmup
 
@@ -56,7 +56,7 @@ parser.add_argument('--test_tsv', default='data/alphanli/tsv/test_split.tsv', ty
 #directory for output
 parser.add_argument('--annot_pred', default='annot_pred.lst', type=str)
 parser.add_argument('--annot_label', default='annot_label.lst', type=str)
-parser.add_argument('--output_dir', default='data', type=str)
+parser.add_argument('--output_dir', default='checkpoint', type=str)
 parser.add_argument('--output_name', default='', type=str)
 
 #general training settings 
@@ -69,6 +69,7 @@ parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples
 parser.add_argument('--evaluate', default=False, type=bool, help='Decide to evaluate on validation set')
 parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evaluation measure') # put multiple eval measures separated by ','
 parser.add_argument('--seed', default=1234, type=int, help='set seed for random, numpy, torch, torch.cuda')
+parser.add_argument('--n_gpu', default=1, type=int)
 
 #for testing 
 # parser.add_argment('--fit_one_batch', default=False, type=bool, help='fits one batch for santy check for model')
@@ -296,32 +297,22 @@ def transformer_initialize_model(args, vocab_size = None):
 			raise ValueError('for now we only support gpt model')
 
 		model = PretrainedDecoderTransformerDual(args.pretrained_name, vocab_size = vocab_size, pooling_type = None)	 # none means mean pooling 
+	
+	if args.n_gpu > 1:
+		model = nn.parallel.DistributedDataParallel(model, find_unused_parameters=True)
+
 	return model 
-
-def prepare_model_parameters_weight_decay(named_parameters):
-	'''
-	Author: Sungjun Han
-	Description: groups parameters for weight decay as biases should not be weight decayed 
-	'''
-
-	no_decay = ['bias', 'LayerNorm.weight']
-	grouped_params = [
-	{'params': [p for n, p in named_parameters if not any(nd in n for nd in no_decay)],
-	'weight_decay': args.weight_decay},
-	{'params': [p for n, p in named_parameters if any(nd in n for nd in no_decay)],
-	'weight_decay': 0.0}
-	]
-	return grouped_params
 
 def test(
 	model_type,
 	model,
+	test_stats,
 	test_loader,
 	output_dir,
 	device,
 	use_cuda=False):
 	'''
-	Author: Sungjun Han
+	Author: Sungjun Ha
 	Description: tests and generates predictions on a teset set
 	'''
 
@@ -329,7 +320,7 @@ def test(
 		model.eval()
 
 		#load best model
-		model_checkpoint_path = os.path.join(output_dir, 'checkpoint_'+ args.model_type)
+		model_checkpoint_path = os.path.join(output_dir, 'checkpoint_'+ args.model_type + '.pt')
 		model.load_state_dict(torch.load(model_checkpoint_path))
 		
 		if use_cuda:
@@ -415,8 +406,7 @@ def train(
 	Author: Sungjun Han
 	Description: trains on a train set for a given number of epochs
 	'''
-
-	val_accuracy = 0. # for early stop
+	val_accuracy = 0.0
 	earlyStop = 0
 	for epoch in tqdm(range(num_epochs), desc='epoch'):
 		labels = []
@@ -469,10 +459,26 @@ def train(
 				'''
 				here implement the dual encoder archiecture for gpt2
 				'''
-				pass 
+				model(input1,
+						input2, 
+						length1, 
+						length2,
+						labels, 
+						masks1,
+						masks2,
+						segment_ids1, 
+						segmnet_ids2)
 
 			loss.backward()
 
+			#gradient check for debugging 
+			# logger.info('aasdfasdfasdf')
+			# for n, p in model.named_parameters():
+			# 	if p.grad is not None:
+			# 		logger.info(n)
+			# 		logger.info(p.grad.mean())
+			# 	else:
+			# 		logger.info('{} grad is None'.format(n))
 			'''
 			implement gradient norm clip 
 			'''
@@ -488,35 +494,54 @@ def train(
 			train_loss += loss.mean().item()
 			labels.extend(label.tolist())
 			pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
+		
+			logger.info('At step {}, train loss = {}'.format(step, loss.mean().item()))
 
 		#update keepr for log liklihood
-		stats.update('loglikelihood',train_loss)
+		stats.update('loglikelihood',train_loss / len(train_loader))
 		stats.eval(labels,pred)
 		#print for status update
-		logging.info('\nTrain stats:')
+		logger.info('\nTrain stats:')
 		stats.print()
 
 		if evaluate_during_training:
-			model, val_stats, terminate = evaluate(
-				model_type,
-				model,
-				val_loader,
-				early_stopping,
-				device)
+			model, val_stats = evaluate(
+				model_type = model_type,
+				model =  model,
+				val_loader =val_loader,
+				val_stats = val_stats,
+				device = device,
+				use_cuda = use_cuda)
 		
-			if terminate:
-				break
+			#early stopping
+			if early_stopping:
+				current_accuracy = val_stats.keeper['accuracy'][-1]
+				if current_accuracy > val_accuracy:
+					earlyStop = 0
+					torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type + '.pt'))
+					val_accuracy = current_accuracy
+					continue
 
+				earlyStop += 1
+				if early_stopping == earlyStop:
+					logger.info('Early stopping criterion met - terminating')
+					return model, (stats, val_stats)
+
+				logger.info('Early stopping patience {}'.format(earlyStop))
+
+	torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type + '.pt') )
 	if evaluate:
 		return model, (stats, val_stats)
+		
 	return model, stats
 
 def evaluate(
 	model_type,
+	val_stats,
 	model, 
 	val_loader,
-	early_stopping,
-	device):
+	device,
+	use_cuda):
 	'''
 	Author: Sungjun Han
 	Description: evaluates on a validation set, implements EarlyStopping if specified - saves the best model 
@@ -584,39 +609,24 @@ def evaluate(
 			labels.extend(label.tolist())
 			pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
 
-		val_stats.update('loglikelihood',total_loss)
-		val_stats.eval(labels,pred)
+	val_stats.update('loglikelihood',total_loss / len(val_loader))
+	val_stats.eval(labels,pred)
 
-		logging.info('\nVal stats:')
-		val_stats.print()
+	logger.info('\nVal stats:')
+	val_stats.print()
 
-	#early stopping
-	if early_stopping:
-		current_accuracy = val_stats.keeper['accuracy'][-1]
-		if current_accuracy > val_accuracy:
-			earlyStop = 0
-			torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type))
-
-			val_accuracy = current_accuracy
-			return model, val_stats, terminate 
-
-		earlyStop += 1
-		if early_stopping == earlyStop:
-			logging.info('Early stopping criterion met - terminating')
-			terminate = True 
-			return model, val_stats, terminate 
-
-		logging.info('Early stopping patience {}'.format(earlyStop))
-
-	# if we dont early stop just save the last model 
-	else:
-		torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type))
-
-	return model, val_stats, terminate  
+	return model, val_stats
 
 def main(args):
 
 	utils.set_seed(args.seed)
+
+	if args.n_gpu > 1:
+		#initializae to synchronize gpus
+		torch.distributed.init_process_group(backend="nccl")
+
+		#make distributed True to use DistributedSampler
+		train_dataset_kwargs['distributed'] = True
 
 	logger.info('Saving the output to %s' % args.output_dir)
 	logger.info('CONFIGURATION:')
@@ -640,6 +650,7 @@ def main(args):
 
 	#initialize metric keeper 
 	stats = metrics.MetricKeeper(args.eval_measure.split(','))
+	test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 	if evaluate:
 		val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
@@ -722,11 +733,12 @@ def main(args):
 			dataset_kwargs['data_path'] = args.val_tsv
 			val_dataset = AlphaDatasetTransformer(**dataset_kwargs)
 
-		train_loader, test_loader, val_loader =load_dataloader_transformer(
+		train_loader, test_loader, val_loader =prepare_dataloader(
 											train_dataset, 
 											test_dataset,
 											val_dataset,
 											args.batch_size, 
+											collate_fn = alpha_collate_fn_transformer ,
 											shuffle=args.shuffle, 
 											drop_last = True, 
 											num_workers = args.num_workers)
@@ -748,9 +760,11 @@ def main(args):
 		else:
 			device = torch.device('cpu')
 
+		# device = args.device
+
 		#group parmaeters if we are weight decaying
 		if args.weight_decay:
-			parameters = prepare_model_parameters_weight_decay(model.named_parameters())
+			parameters = prepare_model_parameters_weight_decay(model.named_parameters(), args.weight_decay)
 		else:
 			parameters = model.parameters()
 
@@ -787,10 +801,14 @@ def main(args):
 		if args.evaluate:
 			stats, val_stats = stats
 								
-		logging.info('Testing...')
+		logger.info('Testing...')
+
+		# here load the best model 
+		
 		test_pred, test_stats = test(
-							model_type = model_type,
+							model_type = args.model_type,
 							model = model,
+							test_stats= test_stats,
 							test_loader = test_loader,
 							output_dir = output_dir,
 							device = device, 
@@ -816,8 +834,15 @@ def main(args):
 if __name__ == '__main__':
 	args = parser.parse_args()
 	#If you set the log level to INFO, it will include INFO, WARNING, ERROR, and CRITICAL messages
+	if not os.path.exists(args.output_dir):
+		os.makedirs(args.output_dir)
+
 	logging.basicConfig(
 		level=logging.INFO,
-		format='%(name)s: %(asctime)s: %(message)s'
+		format='%(name)s: %(asctime)s: %(message)s',
+		handlers=[
+				logging.FileHandler(os.path.join(args.output_dir,'log-gpu:{}.txt'.format(args.use_cuda))),
+				logging.StreamHandler()
+		]
 		)
 	main(args)
