@@ -18,6 +18,7 @@ class MLM_Dataloader(DataLoader):
 
 		data = kwargs.pop('data')
 		tokenizer = kwargs.pop('tokenizer')
+		context_direction = kwargs.pop('context_direction')
 		max_context_length = kwargs.pop('max_context_length')
 		max_target_length = kwargs.pop('max_target_length')
 		masking_prob = kwargs.pop('masking_prob')
@@ -27,6 +28,7 @@ class MLM_Dataloader(DataLoader):
 					tokenizer,
 					max_context_length,
 					max_target_length,
+					context_direction,
 					masking_prob = 0.15,
 					ignore_index = -100,
 					max_samples = None)
@@ -73,6 +75,7 @@ class MLM_Dataset(Dataset):
 				tokenizer,
 				max_context_length,
 				max_target_length,
+				context_direction,
 				masking_prob = 0.15,
 				ignore_index = -100,
 				max_samples = None):
@@ -91,6 +94,7 @@ class MLM_Dataset(Dataset):
 		self.ignore_index = ignore_index
 		self.max_context_length = max_context_length
 		self.max_target_length = max_target_length
+		self.context_direction = context_direction
 		
 		super().__init__()
 		
@@ -99,11 +103,24 @@ class MLM_Dataset(Dataset):
 
 	def __getitem__(self, idx):
 		
+		
+		if self.context_direction == 'preceed':
+		
 		#sentence 0 doesn't have a previous sentence
-		if idx == 0:
-			idx += 1
-		input_sent = self.data[idx]
-		output_sent = self.data[idx-1]
+			if idx == 0:
+				idx += 1
+			output_sent = self.data[idx]
+			input_sent = self.data[idx-1]
+
+		elif self.context_direction == 'succeed':
+			if idx == len(self.data):
+				idx -= 1
+			input_sent = self.data[idx+1]
+			output_sent = self.data[idx]
+		
+		else:
+			raise ValueError('For --context_direction argument choose one of the values: "preceed"/"succeed"')
+
 		
 		input, target, masking, segment_ids = self.tokenize_and_mask(input_sent, output_sent, self.masking_prob)
 
