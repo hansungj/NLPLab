@@ -95,7 +95,7 @@ def main(args):
 		
 		logger.info('Loading data lasted for'.format(starttime_loop - time.time()))
 		
-		t = 1
+		step = 0
 		
 		for batch in loop:
 			#logger.info('Working with batch {}'.format(t))
@@ -114,6 +114,12 @@ def main(args):
 
 			loop.set_description(f'Epoch {epoch}')
 			loop.set_postfix(loss=loss.item())
+			
+			step += 1
+			if step % 100000 = 0:
+				save_path = args.save_model_to + '/' + str(step)
+				model.model.save_pretrained(save_paths)
+
 	
 	#wrapped_model = model.model.base_model
 	#wrapped_model.save_pretrained(args.save_model_to)
