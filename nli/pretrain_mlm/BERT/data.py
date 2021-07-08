@@ -19,12 +19,14 @@ class MLM_Dataloader(DataLoader):
 		data = kwargs.pop('data')
 		tokenizer = kwargs.pop('tokenizer')
 		max_context_length = kwargs.pop('max_context_length')
+		max_target_length = kwargs.pop('max_target_length')
 		masking_prob = kwargs.pop('masking_prob')
 		self.tokenizer = tokenizer
 
 		dataset = MLM_Dataset(data,
 					tokenizer,
 					max_context_length,
+					max_target_length,
 					masking_prob = 0.15,
 					ignore_index = -100,
 					max_samples = None)
@@ -70,6 +72,7 @@ class MLM_Dataset(Dataset):
 				data,
 				tokenizer,
 				max_context_length,
+				max_target_length,
 				masking_prob = 0.15,
 				ignore_index = -100,
 				max_samples = None):
@@ -87,6 +90,7 @@ class MLM_Dataset(Dataset):
 		self.masking_prob = masking_prob
 		self.ignore_index = ignore_index
 		self.max_context_length = max_context_length
+		self.max_target_length = max_target_length
 		
 		super().__init__()
 		
@@ -158,10 +162,10 @@ class MLM_Dataset(Dataset):
 
 		target_tokenized = self.tokenizer.tokenize(output_sent)
 		
-		if len(target_tokenized) < self.max_context_length:
+		if len(target_tokenized) < self.max_target_length:
 				target = target_tokenized
 		else:
-			target = target_tokenized[:self.max_context_length]
+			target = target_tokenized[:self.max_target_length]
 		
 		###.add_speical_token
 		#if self.tokenizer.eos_token != None:

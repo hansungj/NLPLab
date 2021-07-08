@@ -29,7 +29,8 @@ parser.add_argument('--corpus_name', default='bookcorpus', type=str)
 
 parser.add_argument('--pretrained_name', default='bert-base-uncased', type=str, help='can be used to initialize a pretrained model from huggingface')
 parser.add_argument('--max_samples_per_epoch', default=1000, type=int, help='Number of samples per epoch')
-parser.add_argument('--max_context_length', default=50, type=int, help='Max length of a sentence')
+parser.add_argument('--max_context_length', default=128, type=int, help='Max length of a context sentence')
+parser.add_argument('--max_target_length', default=92, type=int, help='Max length of a target sentence')
 parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
 
 parser.add_argument('--use_cuda', default=False, type=bool, help = 'activate to use cuda')
@@ -53,8 +54,10 @@ def main(args):
 						'shuffle':args.shuffle,
 						'num_workers':args.num_workers,
 						'masking_prob':args.masking_prob,
-						'max_context_length':args.max_context_length
+						'max_context_length':args.max_context_length,
+						'max_target_length':args.max_target_length
 						}
+
 	
 	logger.info('Creating Dataloader')
 	logger.info(dataloader_kwargs)
