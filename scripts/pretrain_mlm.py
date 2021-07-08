@@ -29,7 +29,9 @@ parser.add_argument('--corpus_name', default='bookcorpus', type=str)
 
 parser.add_argument('--pretrained_name', default='bert-base-uncased', type=str, help='can be used to initialize a pretrained model from huggingface')
 parser.add_argument('--max_samples_per_epoch', default=1000, type=int, help='Number of samples per epoch')
-parser.add_argument('--max_context_length', default=50, type=int, help='Max length of a sentence')
+parser.add_argument('--max_context_length', default=128, type=int, help='Max length of a context sentence')
+parser.add_argument('--max_target_length', default=92, type=int, help='Max length of a target sentence')
+parser.add_argument('--context_direction', default='preceed', type=str, help='Whether the context preceeds/succeeds the target ')
 parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
 
 parser.add_argument('--use_cuda', default=False, type=bool, help = 'activate to use cuda')
@@ -45,6 +47,14 @@ parser.add_argument('--save_model_to', default='pretrained_BERTmlm', type=str)
 def main(args):
 	
 	tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
+	
+	if tokenizer.cls_token == None:
+		tokenizer.add_special_tokens({'cls_token': '<CLS>'})
+	if tokenizer.sep_token == None:
+		tokenizer.add_special_tokens({'sep_token': '<SEP>'})
+	if tokenizer.eos_token == None:
+		tokenizer.add_special_tokens({'eos_token': '<EOS>'})
+
 	logger.info('Further pretraining BERT model: {}'.format(args.pretrained_name))
 
 	dataloader_kwargs = {'data':args.corpus_name,
@@ -53,8 +63,11 @@ def main(args):
 						'shuffle':args.shuffle,
 						'num_workers':args.num_workers,
 						'masking_prob':args.masking_prob,
-						'max_context_length':args.max_context_length
+						'max_context_length':args.max_context_length,
+						'max_target_length':args.max_target_length,
+						'context_direction':args.context_direction
 						}
+
 	
 	logger.info('Creating Dataloader')
 	logger.info(dataloader_kwargs)
@@ -116,7 +129,7 @@ def main(args):
 			loop.set_postfix(loss=loss.item())
 			
 			step += 1
-			if step % 100000 = 0:
+			if step % 100000 == 0:
 				save_path = args.save_model_to + '/' + str(step)
 				model.model.save_pretrained(save_paths)
 
