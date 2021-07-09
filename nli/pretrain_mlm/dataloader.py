@@ -18,17 +18,21 @@ class MLM_Dataloader(DataLoader):
 
 		data = kwargs.pop('data')
 		tokenizer = kwargs.pop('tokenizer')
-		context_direction = kwargs.pop('context_direction')
+		context_left = kwargs.pop('context_left')
+		context_right = kwargs.pop('context_right')
 		max_context_length = kwargs.pop('max_context_length')
 		max_target_length = kwargs.pop('max_target_length')
 		masking_prob = kwargs.pop('masking_prob')
+		number_of_samples = kwargs.pop('number_of_samples')
 		self.tokenizer = tokenizer
 
 		dataset = MLM_Dataset(data,
 					tokenizer,
 					max_context_length,
 					max_target_length,
-					context_direction,
+					context_left,
+					context_right,
+					number_of_samples,
 					masking_prob = 0.15,
 					ignore_index = -100,
 					max_samples = None)
@@ -75,17 +79,20 @@ class MLM_Dataset(Dataset):
 				tokenizer,
 				max_context_length,
 				max_target_length,
-				context_direction,
+				context_left,
+				context_right,
+				number_of_samples,
 				masking_prob = 0.15,
 				ignore_index = -100,
 				max_samples = None):
 				
 		#loading dataset using huggingface's load_dataset
-		dataset_preload = load_dataset(data) #split='train'
+		#dataset_preload = load_dataset(data, cache_dir = '../hugginface') #split='train'
+		dataset_preload = load_dataset(data)
 		
 		#self.data will be of the following format {'text':[sent_1, sent_2, ....]}
 		#self.data[i] will return the following {'text':[sent_i]}
-		self.data = dataset_preload['train'][:101]['text']
+		self.data = dataset_preload['train'][:number_of_samples]['text']
 		#self.data = dataset_preload['train']
 		
 		self.max_samples = max_samples
@@ -94,7 +101,8 @@ class MLM_Dataset(Dataset):
 		self.ignore_index = ignore_index
 		self.max_context_length = max_context_length
 		self.max_target_length = max_target_length
-		self.context_direction = context_direction
+		self.context_left = context_left
+		self.context_right = context_right
 		
 		super().__init__()
 		
@@ -104,24 +112,22 @@ class MLM_Dataset(Dataset):
 	def __getitem__(self, idx):
 		
 		
-		if self.context_direction == 'preceed':
+		if self.context_left:
 		
 		#sentence 0 doesn't have a previous sentence
 			if idx == 0:
 				idx += 1
 			output_sent = self.data[idx]
-			input_sent = self.data[idx-1]
+			left_input_sent = self.data[idx-1]
 
-		elif self.context_direction == 'succeed':
+		if self.context_right:
 			if idx == len(self.data):
 				idx -= 1
-			input_sent = self.data[idx+1]
+			right_input_sent = self.data[idx+1]
 			output_sent = self.data[idx]
-		
-		else:
-			raise ValueError('For --context_direction argument choose one of the values: "preceed"/"succeed"')
 
-		
+		input_sent = left_input_sent + ' ' + right_input_sent
+
 		input, target, masking, segment_ids = self.tokenize_and_mask(input_sent, output_sent, self.masking_prob)
 
 		item = {}
