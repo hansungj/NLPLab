@@ -20,10 +20,11 @@ class BertMLM(torch.nn.Module):
 			tokens_added += 1
 
 		self.config = BertConfig.from_pretrained(model_name, vocab_size = tokenizer.vocab_size + tokens_added) 
+		#self.config = BertConfig.from_pretrained(model_name, vocab_size = tokenizer.vocab_size + tokens_added, cache_dir = '../hugginface') 
 		#output_hidden_states=True, output_attentions=True)
 		
-		#self.config = BertConfig.from_pretrained(model_name) 
 		self.model = BertForMaskedLM.from_pretrained(model_name, config=self.config)
+		#self.model = BertForMaskedLM.from_pretrained(model_name, config=self.config, cache_dir = '../hugginface')
 		
 		#wrapped_model = bert_model.base_model
 
