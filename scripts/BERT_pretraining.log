@@ -15,3 +15,28 @@ __main__: 2021-07-09 20:50:53,186: Epoch: 0, step 7, loss value 8.34932708740234
 __main__: 2021-07-09 20:50:55,946: Epoch: 0, step 8, loss value 9.20318603515625
 __main__: 2021-07-09 20:50:59,399: Epoch: 0, step 9, loss value 8.447092056274414
 __main__: 2021-07-09 20:51:03,046: Epoch: 0, step 10, loss value 8.184074401855469
+__main__: 2021-07-11 15:00:27,888: Further pretraining BERT model: bert-base-uncased
+__main__: 2021-07-11 15:00:27,888: Creating Dataloader:
+__main__: 2021-07-11 15:00:27,888: {'data': 'bookcorpus', 'tokenizer': PreTrainedTokenizer(name_or_path='bert-base-uncased', vocab_size=30522, model_max_len=512, is_fast=False, padding_side='right', special_tokens={'eos_token': '<EOS>', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}), 'batch_size': 128, 'shuffle': True, 'num_workers': 0, 'masking_prob': 0.15, 'max_context_length': 128, 'max_target_length': 92, 'context_left': True, 'context_right': True, 'number_of_samples': None}
+datasets.builder: 2021-07-11 15:00:28,826: Reusing dataset bookcorpus (C:\Users\Acer\.cache\huggingface\datasets\bookcorpus\plain_text\1.0.0\44662c4a114441c35200992bea923b170e6f13f2f0beb7c14e43759cec498700)
+__main__: 2021-07-11 15:07:33,535: Further pretraining BERT model: bert-base-uncased
+__main__: 2021-07-11 15:07:33,536: Creating Dataloader:
+__main__: 2021-07-11 15:07:33,539: {'data': 'bookcorpus', 'tokenizer': PreTrainedTokenizer(name_or_path='bert-base-uncased', vocab_size=30522, model_max_len=512, is_fast=False, padding_side='right', special_tokens={'eos_token': '<EOS>', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}), 'batch_size': 128, 'shuffle': True, 'num_workers': 0, 'masking_prob': 0.15, 'max_context_length': 128, 'max_target_length': 92, 'context_left': True, 'context_right': True, 'number_of_samples': 101}
+datasets.builder: 2021-07-11 15:07:34,573: Reusing dataset bookcorpus (C:\Users\Acer\.cache\huggingface\datasets\bookcorpus\plain_text\1.0.0\44662c4a114441c35200992bea923b170e6f13f2f0beb7c14e43759cec498700)
+__main__: 2021-07-11 15:08:12,492: Further pretraining BERT model: bert-base-uncased
+__main__: 2021-07-11 15:08:12,495: Creating Dataloader:
+__main__: 2021-07-11 15:08:12,497: {'data': 'bookcorpus', 'tokenizer': PreTrainedTokenizer(name_or_path='bert-base-uncased', vocab_size=30522, model_max_len=512, is_fast=False, padding_side='right', special_tokens={'eos_token': '<EOS>', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}), 'batch_size': 128, 'shuffle': True, 'num_workers': 0, 'masking_prob': 0.15, 'max_context_length': 128, 'max_target_length': 92, 'context_left': True, 'context_right': True, 'number_of_samples': 101}
+datasets.builder: 2021-07-11 15:08:13,096: Reusing dataset bookcorpus (C:\Users\Acer\.cache\huggingface\datasets\bookcorpus\plain_text\1.0.0\44662c4a114441c35200992bea923b170e6f13f2f0beb7c14e43759cec498700)
+__main__: 2021-07-11 15:09:26,281: Further pretraining BERT model: bert-base-uncased
+__main__: 2021-07-11 15:09:26,282: Creating Dataloader:
+__main__: 2021-07-11 15:09:26,285: {'data': 'bookcorpus', 'tokenizer': PreTrainedTokenizer(name_or_path='bert-base-uncased', vocab_size=30522, model_max_len=512, is_fast=False, padding_side='right', special_tokens={'eos_token': '<EOS>', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}), 'batch_size': 128, 'shuffle': True, 'num_workers': 0, 'masking_prob': 0.15, 'max_context_length': 128, 'max_target_length': 92, 'context_left': True, 'context_right': True, 'number_of_samples': None}
+datasets.builder: 2021-07-11 15:09:26,907: Reusing dataset bookcorpus (C:\Users\Acer\.cache\huggingface\datasets\bookcorpus\plain_text\1.0.0\44662c4a114441c35200992bea923b170e6f13f2f0beb7c14e43759cec498700)
+__main__: 2021-07-11 15:11:33,313: Further pretraining BERT model: bert-base-uncased
+__main__: 2021-07-11 15:11:33,314: Creating Dataloader:
+__main__: 2021-07-11 15:11:33,316: {'data': 'bookcorpus', 'tokenizer': PreTrainedTokenizer(name_or_path='bert-base-uncased', vocab_size=30522, model_max_len=512, is_fast=False, padding_side='right', special_tokens={'eos_token': '<EOS>', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}), 'batch_size': 128, 'shuffle': True, 'num_workers': 0, 'masking_prob': 0.15, 'max_context_length': 128, 'max_target_length': 92, 'context_left': True, 'context_right': True, 'number_of_samples': 101}
+datasets.builder: 2021-07-11 15:11:33,943: Reusing dataset bookcorpus (C:\Users\Acer\.cache\huggingface\datasets\bookcorpus\plain_text\1.0.0\44662c4a114441c35200992bea923b170e6f13f2f0beb7c14e43759cec498700)
+__main__: 2021-07-11 15:11:36,022: Initializing a BERT model: bert-base-uncased
+__main__: 2021-07-11 15:11:38,574: Model settings:
+__main__: 2021-07-11 15:11:38,574: {'data': 'bookcorpus', 'tokenizer': PreTrainedTokenizer(name_or_path='bert-base-uncased', vocab_size=30522, model_max_len=512, is_fast=False, padding_side='right', special_tokens={'eos_token': '<EOS>', 'unk_token': '[UNK]', 'sep_token': '[SEP]', 'pad_token': '[PAD]', 'cls_token': '[CLS]', 'mask_token': '[MASK]'}), 'batch_size': 128, 'shuffle': True, 'num_workers': 0, 'masking_prob': 0.15, 'max_context_length': 128, 'max_target_length': 92, 'context_left': True, 'context_right': True, 'number_of_samples': 101}
+__main__: 2021-07-11 15:12:29,932: Epoch: 0, step 1, loss value 14.330081939697266
+__main__: 2021-07-11 15:13:27,286: Epoch: 1, step 1, loss value 12.948369979858398
