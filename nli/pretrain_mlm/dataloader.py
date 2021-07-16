@@ -92,7 +92,7 @@ class MLM_Dataset(Dataset):
 		
 		#self.data will be of the following format {'text':[sent_1, sent_2, ....]}
 		#self.data[i] will return the following {'text':[sent_i]}
-		self.data = dataset_preload['train'][:number_of_samples]['text']
+		self.data = dataset_preload['train'][:number_of_samples]
 		#self.data = dataset_preload['train']
 		
 		self.max_samples = max_samples
@@ -107,7 +107,7 @@ class MLM_Dataset(Dataset):
 		super().__init__()
 		
 	def __len__(self):
-		return len(self.data)-2
+		return len(self.data['text'])-2
 
 	def __getitem__(self, idx):
 		
@@ -117,14 +117,14 @@ class MLM_Dataset(Dataset):
 		#sentence 0 doesn't have a previous sentence
 			if idx == 0:
 				idx += 1
-			output_sent = self.data[idx]
-			left_input_sent = self.data[idx-1]
+			output_sent = self.data['text'][idx]
+			left_input_sent = self.data['text'][idx-1]
 
 		if self.context_right:
 			if idx == len(self.data):
 				idx -= 1
-			right_input_sent = self.data[idx+1]
-			output_sent = self.data[idx]
+			right_input_sent = self.data['text'][idx+1]
+			output_sent = self.data['text'][idx]
 
 		input_sent = left_input_sent + ' ' + right_input_sent
 

@@ -294,3 +294,169 @@ def load_dataloader_transformer(dataset, test_dataset, val_dataset, batch_size ,
 			num_workers=num_workers)
 
 	return dataloader, test_dataloader, val_dataloader
+
+
+class AlphaDatasetDualEncoder(Dataset):
+	'''
+	Author: Anastasiia
+	Description: Prepares  2 instances: [[CLS], obs1, [SEP], obs2 [SEP], hyp1, [EOS]] and [[CLS], obs1, [SEP], obs2 [SEP], hyp2, [EOS]]. 	
+	'''
+	def __init__(self,
+				data_path,
+				tokenizer, 
+				max_samples=None,
+				sep_token=None,
+				pad_token_id=None
+				):
+
+		self.data = open_tsv_file(data_path, dic=True)
+		self.tokenizer = tokenizer
+		self.max_samples = max_samples
+		self.pad_token_id = tokenizer.pad_token_id if pad_token_id is None else pad_token_id
+		self.sep_token = tokenizer.sep_token if sep_token is None else sep_token
+
+	def __len__(self):
+		if self.max_samples is None:
+			return len(self.data['obs1'])
+		return self.max_samples
+
+	def __getitem__(self, idx):
+		observations = (' ' + self.sep_token + ' ').join([self.data['obs1'][idx], self.data['obs2'][idx]])
+		hypotheses = (' ' + self.sep_token + ' ').join(['hypothesis 1 :'+ self.data['hyp1'][idx],'hypothesis 2 :'+  self.data['hyp2'][idx]])
+		tokenized_observations = self.tokenizer.tokenize(observations)
+
+		input1 = []
+		input1.append(self.tokenizer.cls_token)
+		input1 += tokenized_observations
+		input1.append(self.sep_token)
+
+		segment_ids1 = [0]*len(input1)
+
+		hyp1 = self.data['hyp1'][idx]
+		hyp1_tokenized = self.tokenizer.tokenize(hyp1)
+		input1 += hyp1_tokenized
+		input1.append(self.tokenizer.eos_token)
+		input1 = self.tokenizer.convert_tokens_to_ids(input1)
+
+		segment_ids1.extend([1]*(len(hyp1_tokenized)+1))
+		masks1 = [1]*len(input1)
+
+		input2 = []
+		input2.append(self.tokenizer.cls_token)
+		input2 += tokenized_observations
+		input2.append(self.sep_token)
+
+		segment_ids2 = [0]*len(input2)
+		
+		hyp2 = self.data['hyp2'][idx]
+		hyp2_tokenized = self.tokenizer.tokenize(hyp2)
+		input2 += hyp2_tokenized
+		input2.append(self.tokenizer.eos_token)
+		input2 = self.tokenizer.convert_tokens_to_ids(input2)
+
+		segment_ids2.extend([1]*(len(hyp2_tokenized)+1))
+		masks2 = [1]*len(input2)
+
+		item = {}
+		item['input1'] = torch.tensor(input1)
+		item['segment_ids1'] = torch.tensor(segment_ids1)
+		item['masks1'] = torch.tensor(masks1)
+
+		item['input2'] = torch.tensor(input2)
+		item['segment_ids2'] = torch.tensor(segment_ids2)
+		item['masks2'] = torch.tensor(masks2)
+
+		item['reference'] = observations + self.sep_token + hypotheses
+		item['label'] = torch.tensor(self.data['label'][idx])
+		return item
+
+
+class DualEncoder_Dataloader(DataLoader):
+	'''
+	Author: Anastasiia
+	'''
+	def __init__(self,**kwargs):
+
+		tokenizer = kwargs.pop('tokenizer')
+		self.tokenizer = tokenizer
+		
+		kwargs['collate_fn'] = self.collate_fn_BBDualEnc
+		super().__init__(**kwargs)
+	
+
+	def collate_fn_BBDualEnc(self, batch):
+		'''
+		Author: Anastasiia
+		'''
+		item={}
+		for key in batch[0].keys():
+			item[key] = [d[key] for d in batch]
+
+		input1 = self.padding(item['input1'])
+		masks1 = self.padding(item['masks1'])
+		segment_ids1 = self.padding(item['segment_ids1'])
+
+		input2 = self.padding(item['input2'])
+		masks2 = self.padding(item['masks2'])
+		segment_ids2 = self.padding(item['segment_ids2'])
+		
+		label = torch.stack(item['label']).float()
+
+		d = {}
+		d['input1'] = input1
+		d['masks1'] = masks1
+		d['segment_ids1'] = segment_ids1
+		d['input2'] = input2
+		d['masks2'] = masks2
+		d['segment_ids2'] = segment_ids2
+		d['reference'] = item['reference']
+		d['label'] = label
+
+		return d
+
+	def padding(self, datalist):
+		pad_token_id = self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token)
+		max_len = max([len(item) for item in datalist])
+		padded_datalist = torch.zeros((len(datalist), max_len)).long()
+		for i in range(len(datalist)):
+			padded_datalist[i, :len(datalist[i])] = datalist[i]
+			if len(datalist[i]) < max_len:
+				padded_datalist[i, len(datalist[i]):] = torch.Tensor([pad_token_id]*(max_len - len(datalist[i]))).long()
+		return padded_datalist
+
+def load_dataloader_BBDualEnc(tokenizer, dataset, test_dataset, val_dataset, batch_size ,shuffle=True, drop_last = True, num_workers=0):
+	'''
+	Author:  Anastasiia
+	Description:
+	prepares dataloader for train/val/test for bert based dual encoder models 
+	'''
+	train_kwargs = {'dataset':dataset,
+					'tokenizer':tokenizer,
+					'batch_size':batch_size,
+					'shuffle':shuffle,
+					'num_workers':num_workers,
+					'drop_last':drop_last}
+
+	dataloader = DualEncoder_Dataloader(**train_kwargs)
+
+	test_kwargs = {'dataset':test_dataset,
+					'tokenizer':tokenizer,
+					'batch_size':batch_size,
+					'shuffle':shuffle,
+					'num_workers':num_workers,
+					'drop_last':drop_last}
+
+	test_dataloader = DualEncoder_Dataloader(**test_kwargs)
+
+	val_dataloader = None
+	if val_dataset is not None:
+		val_kwargs = {'dataset':val_dataset,
+					'tokenizer':tokenizer,
+					'batch_size':batch_size,
+					'shuffle':shuffle,
+					'num_workers':num_workers,
+					'drop_last':drop_last}
+					
+		val_dataloader = DualEncoder_Dataloader(**val_kwargs)
+
+	return dataloader, test_dataloader, val_dataloader

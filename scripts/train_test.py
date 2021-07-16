@@ -23,13 +23,15 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 import nli.utils as utils 
-from nli.dataloader import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, load_dataloader_base, load_dataloader_transformer
+from nli.dataloader import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, AlphaDatasetDualEncoder, load_dataloader_base, load_dataloader_transformer,load_dataloader_BBDualEnc
 import nli.preprocess as preprocess
 import nli.metrics as metrics
 from nli.tokenization import WhiteSpaceTokenizer
 from nli.embedding import build_embedding_glove
 from nli.models import *
 from nli.models import StaticEmbeddingCNN
+from nli.models.bert_dual_encoder import BB_DualEncoder
+
 
 from transformers import BertTokenizer, GPT2Tokenizer, get_linear_schedule_with_warmup
 
@@ -321,7 +323,7 @@ def test(
 	device,
 	use_cuda=False):
 	'''
-	Author: Sungjun Han
+	Author: Sungjun Han, Anastasiia
 	Description: tests and generates predictions on a teset set
 	'''
 
@@ -383,6 +385,31 @@ def test(
 
 				label = batch['label']
 
+			elif model_type in ['dual_enc_bert']:
+				if use_cuda:
+					batch['input1'] = batch['input1'].to(device)
+					batch['segment_ids1'] = batch['segment_ids1'].to(device)
+					batch['masks1'] = batch['masks1'].to(device)
+					batch['input2'] = batch['input2'].to(device)
+					batch['segment_ids2'] = batch['segment_ids2'].to(device)
+					batch['masks2'] = batch['masks2'].to(device)
+					batch['label'] = batch['label'].to(device)
+
+
+				inputs = {
+				'input1': batch['input1'],
+				'input2': batch['input2'],
+				'segment_ids1':batch['segment_ids1'],
+				'segment_ids2':batch['segment_ids2'],
+				'attention_mask1':batch['masks1'],
+				'attention_mask2':batch['masks2'],
+				'y': batch['label']
+				}
+			
+				logits, loss = model(**inputs)
+
+				label = batch['label']
+
 		#update keepr for log liklihood
 		test_loss += loss.mean().item()
 		
@@ -412,7 +439,7 @@ def train(
 	use_cuda=False,
 	output_dir=None):
 	'''
-	Author: Sungjun Han
+	Author: Sungjun Han, Anastasiia
 	Description: trains on a train set for a given number of epochs
 	'''
 
@@ -470,6 +497,31 @@ def train(
 				here implement the dual encoder archiecture for gpt2
 				'''
 				pass 
+			
+			elif model_type in ['dual_enc_bert']:
+				if use_cuda:
+					batch['input1'] = batch['input1'].to(device)
+					batch['segment_ids1'] = batch['segment_ids1'].to(device)
+					batch['masks1'] = batch['masks1'].to(device)
+					batch['input2'] = batch['input2'].to(device)
+					batch['segment_ids2'] = batch['segment_ids2'].to(device)
+					batch['masks2'] = batch['masks2'].to(device)
+					batch['label'] = batch['label'].to(device)
+
+
+				inputs = {
+				'input1': batch['input1'],
+				'input2': batch['input2'],
+				'segment_ids1':batch['segment_ids1'],
+				'segment_ids2':batch['segment_ids2'],
+				'attention_mask1':batch['masks1'],
+				'attention_mask2':batch['masks2'],
+				'y': batch['label']
+				}
+			
+				logits, loss = model(**inputs)
+
+				label = batch['label']
 
 			loss.backward()
 
@@ -518,7 +570,7 @@ def evaluate(
 	early_stopping,
 	device):
 	'''
-	Author: Sungjun Han
+	Author: Sungjun Han, Anastasiia
 	Description: evaluates on a validation set, implements EarlyStopping if specified - saves the best model 
 	'''
 	
@@ -577,6 +629,31 @@ def evaluate(
 					batch['input_ids_1'] = batch['input_ids_1'].to(device)
 					batch['input_ids_2'] = batch['input_ids_2'].to(device)
 					batch['masks'] = batch['masks'].to(device)
+
+			elif model_type in ['dual_enc_bert']:
+				if use_cuda:
+					batch['input1'] = batch['input1'].to(device)
+					batch['segment_ids1'] = batch['segment_ids1'].to(device)
+					batch['masks1'] = batch['masks1'].to(device)
+					batch['input2'] = batch['input2'].to(device)
+					batch['segment_ids2'] = batch['segment_ids2'].to(device)
+					batch['masks2'] = batch['masks2'].to(device)
+					batch['label'] = batch['label'].to(device)
+
+
+				inputs = {
+				'input1': batch['input1'],
+				'input2': batch['input2'],
+				'segment_ids1':batch['segment_ids1'],
+				'segment_ids2':batch['segment_ids2'],
+				'attention_mask1':batch['masks1'],
+				'attention_mask2':batch['masks2'],
+				'y': batch['label']
+				}
+			
+				logits, loss = model(**inputs)
+
+				label = batch['label']
 
 			#update keepr for log liklihood
 			total_loss += loss.mean().item()
@@ -733,6 +810,46 @@ def main(args):
 		
 		model = transformer_initialize_model(args, vocab_size = len(tokenizer))
 		# model.model.resize_token_embeddings(len(tokenizer))
+
+	elif args.model_type =='dual_enc_bert':
+
+		tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
+		if tokenizer.cls_token == None:
+			tokenizer.add_special_tokens({'cls_token': '[CLS]'})
+		if tokenizer.sep_token == None:
+			tokenizer.add_special_tokens({'sep_token': '[SEP]'})
+		if tokenizer.eos_token == None:
+			tokenizer.add_special_tokens({'eos_token': '[EOS]'})
+
+		model = BB_DualEncoder(args.pretrained_name, tokenizer)
+
+		dataset_kwargs = {'data_path': args.train_tsv,
+				'max_samples': args.max_samples_per_epoch,
+				'pad_token_id': None,
+				'tokenizer':tokenizer}
+
+		#initialize dataloader -- train
+		train_dataset = AlphaDatasetDualEncoder(**dataset_kwargs)
+
+		#initialize dataloader -- test
+		dataset_kwargs['data_path'] = args.test_tsv
+		test_dataset = AlphaDatasetDualEncoder(**dataset_kwargs)
+
+		#initialize val-dataloader
+		val_dataset = None
+		if args.evaluate:
+			dataset_kwargs['data_path'] = args.val_tsv
+			val_dataset = AlphaDatasetDualEncoder(**dataset_kwargs)
+		
+		train_loader, test_loader, val_loader =load_dataloader_BBDualEnc(tokenizer,
+											train_dataset, 
+											test_dataset,
+											val_dataset,
+											args.batch_size, 
+											shuffle=args.shuffle, 
+											drop_last = True, 
+											num_workers = args.num_workers)
+		
 	else:
 		raise ValueError('model type not recognized')
 
