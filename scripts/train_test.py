@@ -566,6 +566,7 @@ def train(
 
 def evaluate(
 	model_type,
+	val_stats,
 	model, 
 	val_loader,
 	early_stopping,
