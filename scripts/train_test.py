@@ -551,6 +551,7 @@ def train(
 		if evaluate_during_training:
 			model, val_stats, terminate = evaluate(
 				model_type,
+				val_stats,
 				model,
 				val_loader,
 				early_stopping,
