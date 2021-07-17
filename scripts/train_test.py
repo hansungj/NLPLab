@@ -554,7 +554,8 @@ def train(
 				model,
 				val_loader,
 				early_stopping,
-				device)
+				device,
+				use_cuda)
 		
 			if terminate:
 				break
@@ -568,7 +569,8 @@ def evaluate(
 	model, 
 	val_loader,
 	early_stopping,
-	device):
+	device,
+	use_cuda=False):
 	'''
 	Author: Sungjun Han, Anastasiia
 	Description: evaluates on a validation set, implements EarlyStopping if specified - saves the best model 
