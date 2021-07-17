@@ -551,21 +551,37 @@ def train(
 		if evaluate_during_training:
 			model, val_stats, terminate = evaluate(
 				model_type,
+				val_stats,
 				model,
 				val_loader,
 				early_stopping,
 				device,
 				use_cuda)
 		
-			if terminate:
-				break
+			#early stopping
+			if early_stopping:
+				current_accuracy = val_stats.keeper['accuracy'][-1]
+				if current_accuracy > val_accuracy:
+					earlyStop = 0
+					torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type + '.pt'))
+					val_accuracy = current_accuracy
+					continue
 
+				earlyStop += 1
+				if early_stopping == earlyStop:
+					logging.info('Early stopping criterion met - terminating')
+					return model, (stats, val_stats)
+
+				logging.info('Early stopping patience {}'.format(earlyStop))
+
+	torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type + '.pt'))
 	if evaluate:
 		return model, (stats, val_stats)
 	return model, stats
 
 def evaluate(
 	model_type,
+	val_stats,
 	model, 
 	val_loader,
 	early_stopping,
@@ -663,35 +679,13 @@ def evaluate(
 			labels.extend(label.tolist())
 			pred.extend((torch.sigmoid(logits.view(-1))>0.5).long().tolist())
 
-		val_stats.update('loglikelihood',total_loss)
+		val_stats.update('loglikelihood',total_loss / len(val_loader))
 		val_stats.eval(labels,pred)
 
 		logging.info('\nVal stats:')
 		val_stats.print()
 
-	#early stopping
-	if early_stopping:
-		current_accuracy = val_stats.keeper['accuracy'][-1]
-		if current_accuracy > val_accuracy:
-			earlyStop = 0
-			torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type))
-
-			val_accuracy = current_accuracy
-			return model, val_stats, terminate 
-
-		earlyStop += 1
-		if early_stopping == earlyStop:
-			logging.info('Early stopping criterion met - terminating')
-			terminate = True 
-			return model, val_stats, terminate 
-
-		logging.info('Early stopping patience {}'.format(earlyStop))
-
-	# if we dont early stop just save the last model 
-	else:
-		torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type))
-
-	return model, val_stats, terminate  
+	return model, val_stats  
 
 def main(args):
 
