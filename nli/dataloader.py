@@ -283,33 +283,35 @@ def prepare_dataloader(dataset,
 
 	note that we do not test using with multiple gpus
 	'''
-
-
-	train_shuffle = shuffle # so that we keep this value for valloader
-	sampler = None
-	if distributed:
-		sampler = DistributedSampler(dataset, shuffle=train_shuffle)
-		train_shuffle = False 
-
-	dataloader = DataLoader(dataset, 
-		batch_size, 
-		collate_fn = collate_fn, 
-		shuffle=train_shuffle, 
-		drop_last=drop_last,
-		sampler = sampler,
-		num_workers=num_workers )
-
-	test_dataloader = DataLoader(test_dataset, 
-		batch_size, 
-		collate_fn = collate_fn, 
-		shuffle=False, 
-		drop_last=False,
-		sampler = None,
-		num_workers=num_workers )
-
+	dataloader = None
+	test_dataloader = None
 	val_dataloader = None
+
+	if dataset:
+		train_shuffle = shuffle # so that we keep this value for valloader
+		sampler = None
+		if distributed:
+			sampler = DistributedSampler(dataset, shuffle=train_shuffle)
+			train_shuffle = False 
+		dataloader = DataLoader(dataset, 
+			batch_size, 
+			collate_fn = collate_fn, 
+			shuffle=train_shuffle, 
+			drop_last=drop_last,
+			sampler = sampler,
+			num_workers=num_workers )
+
+	if test_dataset:
+		test_dataloader = DataLoader(test_dataset, 
+			batch_size, 
+			collate_fn = collate_fn, 
+			shuffle=False, 
+			drop_last=False,
+			sampler = None,
+			num_workers=num_workers )
+
 	sampler = None
-	if val_dataset is not None:
+	if val_dataset:
 		if distributed:
 			sampler = DistributedSampler(val_dataset, shuffle=shuffle)
 			shuffle = False 
