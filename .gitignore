@@ -13,8 +13,12 @@ nli/.DS_Store
 *.jsonl
 *.pickle
 data/checkpoint_pretrained-transformers-cls/checkpoint_pretrained-transformers-cls
+<<<<<<< HEAD
 *.bin
 checkpoint
 *.out
 scripts/pretrained_BERTmlm/pytorch_model.bin
 
+=======
+scripts/pretrained_BERTmlm/pytorch_model.bin
+>>>>>>> 800317dd4638a47f458d0656207216204a381596
