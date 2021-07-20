@@ -60,6 +60,32 @@ class PretrainedDecoderTransformerCLS(nn.Module):
         logits = output.logits
         return logits, loss
 
+class ClassificationHead(nn.Module):
+    def __init__(self, n_emb, num_layers=3, dropout=0.1, n_out =1):
+        super().__init__()
+        self.seq = nn.ModuleList([ nn.Sequential(
+                nn.LayerNorm(n_emb),
+                nn.Dropout(dropout),
+                Linear(n_emb, n_emb),
+                nn.GELU()) for _ in range(num_layers -1)])
+        
+        self.seq.append(nn.Sequential(
+                nn.LayerNorm(n_emb),
+                nn.Dropout(dropout),
+                Linear(n_emb, n_out)))
+
+    def forward(self, x):
+        for layer in self.seq[:-1]:
+            x = layer(x) + x
+        x = self.seq[-1](x)
+        return x 
+
+class Linear(nn.Linear):
+    def __init__(self, n_in, n_out):
+        super().__init__(n_in, n_out)
+        # orthogonal initialization 
+        nn.init.orthogonal_(self.weight)
+
 class PretrainedDecoderTransformerDual(nn.Module):
     '''
     author:  Sungjun Han
@@ -70,26 +96,27 @@ class PretrainedDecoderTransformerDual(nn.Module):
     def __init__(self, 
     model_name, 
     vocab_size = None,
-    dropout=0.1):
+    num_layers = 3,
+    dropout=0.1,
+    label_mask=False):
         super().__init__()
         
-        self.model = transformers.GPT2Model.from_pretrained(model_name, cache_dir ='../huggingface')
+        self.model = transformers.GPT2LMHeadModel.from_pretrained(model_name, cache_dir ='../huggingface')
         # self.model = transformers.GPT2LMHeadModel.from_pretrained(model_name, cache_dir ='../huggingface')
-        if vocab_size:
-            self.model.resize_token_embeddings(len(vocab_size))
-
+        self.model.config.output_hidden_states = True
         config = self.model.config
-        self.seq_head = nn.Sequential(
-            nn.Dropout(dropout),
-            nn.Linear(config.n_embd*2, config.n_embd),
-            nn.Tanh(),
-            nn.Dropout(dropout),
-            nn.Linear(config.n_embd, 1)
-        ) # *2 because [h1-h2, h1*h2]
-
-        self.loss_fn = nn.BCEWithLogitsLoss()
+        self.seq_head1 = ClassificationHead(config.n_embd, num_layers=num_layers, dropout=dropout)
+        self.seq_head2 = ClassificationHead(config.n_embd, num_layers=num_layers, dropout=dropout)
+        self.loss_fn = nn.CrossEntropyLoss()
         self.lm_loss_fn = nn.CrossEntropyLoss()
+        self.label_mask = label_mask 
         
+    def lm_fill(self, inputs, masks):
+
+        L = inputs.size(1)
+        masks = masks.expand(-1, L)
+        labels = inputs.masked_fill_(masks)
+        return labels 
 
     def forward(self, 
             input1,
@@ -101,65 +128,125 @@ class PretrainedDecoderTransformerDual(nn.Module):
             masks2,
             segment_ids1, 
             segment_ids2):
-        output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1)
-        output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2)
 
-        # apply only the lm model loss on the correct output 
-        # if self.pooling_type == 'mean': # mean pooling 
-        # 	h1 = max_pooling(output1[0], masks1)
-        # 	h2 = max_pooling(output2[0], masks2)
+        # using the mask and only calculate the language modelling for the correct 
+        if self.label_mask:
+            label_mask1 = labels
+            label_mask2 = (labels == 0).long()
+            label1 = self.lm_fill(input1, label_mask1)
+            label2 = self.lm_fill(input2, label_mask2)
+            output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = label1)
+            output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = label2)
+        else:
+        
+            output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = input1)
+            output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = input2)
 
         #take the cls 
         B= labels.size(0)
-        h1 = output1[0][torch.arange(B), length1-1]
-        h2 = output2[0][torch.arange(B), length2-1]
-        
-        h = torch.cat([torch.abs(h1-h2), h1*h2], dim=-1) #abs so that the order does not matter 
-        logits = self.seq_head(h)
+        h1 = output1.hidden_states[-1][torch.arange(B), length1-1]
+        h2 = output2.hidden_states[-1][torch.arange(B), length2-1]
+    
+        h1 = self.seq_head1(h1)
+        h2 =  self.seq_head2(h2)
+        logits = torch.cat([h1,h2], dim=-1)
 
         if labels is not None:
-            loss = self.loss_fn(logits.view(-1), labels.view(-1))
-
-            # #here we gather the outputs associated with the correct label 
-            # h = torch.cat([output1.hidden_states.unsqueeze(0), output2.hidden_states.unsqueeze(0)], dim=0)
-            # print(h.size())
-            # h = h[labels.view(-1)]
-            # print(h.size())
-            
-            # #now use this extracted output for lm modelling 
-            # lm_logits = self.model.lm_head(h)[..., :-1, :].contiguous()
-            # lm_labels = torch.cat([input1.unsqueeze(-1), input2.unsqueeze(-1)], dim=-1) # B X L X H X 2
-            # lm_labels = lm_labels[..., labels]# B X L X H 
-            # lm_labels = lm_labels[..., 1:].contiguous()# B X L X H-1
-        
-            # lm_loss = self.lm_loss_fn(lm_logits.view(-1, lm_logits.size(-1)), lm_labels.view(-1))
-
-            return logits, loss
+            loss = self.loss_fn(logits.view(-1, (logits.size(-1))), labels.view(-1))
+            lm_loss = output1.loss + output2.loss
+            return logits, loss, lm_loss
             # return logits, loss, lm_loss 
             
         return logits
 
-    def zero_shot_classify(self, input1, input2, masks1, masks2):
-        '''
-        classify zero shot way 
-        - here we calculate the log likelihood for the hypothesis 
-        input 
-        '''
+    # def zero_shot_classify(self, input1, input2, masks1, masks2):
+    #     '''
+    #     classify zero shot way 
+    #     - here we calculate the log likelihood for the hypothesis 
+    #     input 
+    #     '''
 
-        output1 = self.model(input1, labels =None,  **kwargs)
-        output2 = self.model(input1, labels =None, **kwargs)
+    #     output1 = self.model(input1, labels =None,  **kwargs)
+    #     output2 = self.model(input1, labels =None, **kwargs)
 
-        label1 = input1[..., 1:].contiguous()
-        label2 = input2[..., 1:].contiguous()
+    #     label1 = input1[..., 1:].contiguous()
+    #     label2 = input2[..., 1:].contiguous()
 
-        logits1 = output1.hidden_states[...,:-1].contiguous()
-        logits2 = output2.hidden_states[...,:-1].contiguous()
+    #     logits1 = output1.hidden_states[...,:-1].contiguous()
+    #     logits2 = output2.hidden_states[...,:-1].contiguous()
 
-        ll1 = logits1[..., labels1.view(-1)]
-        ll2 = logits2[..., labels2.view(-1)]
+    #     ll1 = logits1[..., labels1.view(-1)]
+    #     ll2 = logits2[..., labels2.view(-1)]
 
-        ll1 = torch.sum(ll1*masks1, dim=-1) / torch.sum(masks1, dim=-1)
-        ll2 = torch.sum(ll2*masks2, dim=-1) / torch.sum(masks1, dim=-1)
+    #     ll1 = torch.sum(ll1*masks1, dim=-1) / torch.sum(masks1, dim=-1)
+    #     ll2 = torch.sum(ll2*masks2, dim=-1) / torch.sum(masks1, dim=-1)
 
-        return (ll1 < ll2).long()
+    #     return (ll1 < ll2).long()
 
+class PretrainedDecoderTransformerDualSingleClassifier(nn.Module):
+    '''
+    author:  Sungjun Han
+
+    This model will assume a dual-encoder archiecture 
+    - language modelling auxilary objetive only for the encoder with the correct hypothesis! 
+    '''
+    def __init__(self, 
+    model_name, 
+    vocab_size = None,
+    num_layers = 3,
+    dropout=0.1,
+    label_mask=False):
+        super().__init__()
+        
+        self.model = transformers.GPT2LMHeadModel.from_pretrained(model_name, cache_dir ='../huggingface')
+        # self.model = transformers.GPT2LMHeadModel.from_pretrained(model_name, cache_dir ='../huggingface')
+        self.model.config.output_hidden_states = True
+        config = self.model.config
+        self.seq_head = ClassificationHead(config.n_embd*3, num_layers=num_layers, dropout=dropout, n_out = 2)
+        self.loss_fn = nn.CrossEntropyLoss()
+        self.lm_loss_fn = nn.CrossEntropyLoss()
+        self.label_mask = label_mask 
+        
+    def lm_fill(self, inputs, masks):
+        L = inputs.size(1)
+        masks = masks.expand(-1, L)
+        labels = inputs.masked_fill_(masks)
+        return labels 
+
+    def forward(self, 
+            input1,
+            input2, 
+            length1, 
+            length2,
+            labels, 
+            masks1,
+            masks2,
+            segment_ids1, 
+            segment_ids2):
+
+        # using the mask and only calculate the language modelling for the correct 
+        if self.label_mask:
+            label_mask1 = labels
+            label_mask2 = (labels == 0).long()
+            label1 = self.lm_fill(input1, label_mask1)
+            label2 = self.lm_fill(input2, label_mask2)
+            output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = label1)
+            output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = label2)
+        else:
+        
+            output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = input1)
+            output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = input2)
+
+        #take the cls 
+        B= labels.size(0)
+        h1 = output1.hidden_states[-1][torch.arange(B), length1-1]
+        h2 = output2.hidden_states[-1][torch.arange(B), length2-1]
+    
+        pooled = torch.cat([h1, h2, h1-h2], dim=-1)
+        logits = self.seq_head(pooled)
+
+        if labels is not None:
+            loss = self.loss_fn(logits.view(-1, (logits.size(-1))), labels.view(-1))
+            lm_loss = output1.loss + output2.loss
+            return logits, loss, lm_loss
+        return logits

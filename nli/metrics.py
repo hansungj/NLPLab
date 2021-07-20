@@ -11,22 +11,21 @@ class MetricKeeper(object):
 	Description: Class for holding and evaluting evaluation metrics 
 	'''
 
-	def __init__(self, eval_measures):
-
-		assert(isinstance(eval_measures, list))
-
+	def __init__(self, eval_measures=None):
 		self.keeper = defaultdict(list)
 		self.eval_functions = []
-		for eval_name in eval_measures:
+		if eval_measures:
+			assert(isinstance(eval_measures, list))
+			for eval_name in eval_measures:
 
-			if eval_name == 'accuracy':
-				self.eval_functions.append((accuracy, 'accuracy'))
-			elif eval_name == 'precision':
-				self.eval_functions.append((precision, 'precision'))
-			elif eval_name == 'recall':
-				self.eval_functions.append((recall, 'recall'))
-			elif eval_name == 'fscore':
-				self.eval_functions.append((fscore, 'fscore'))
+				if eval_name == 'accuracy':
+					self.eval_functions.append((accuracy, 'accuracy'))
+				elif eval_name == 'precision':
+					self.eval_functions.append((precision, 'precision'))
+				elif eval_name == 'recall':
+					self.eval_functions.append((recall, 'recall'))
+				elif eval_name == 'fscore':
+					self.eval_functions.append((fscore, 'fscore'))
 
 	def eval(self, y, y_pred):
 		for eval_f, eval_n in self.eval_functions:

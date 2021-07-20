@@ -26,15 +26,16 @@ import nli.utils as utils
 import nli.preprocess as preprocess
 import nli.metrics as metrics
 
-from transformers import GPT2Tokenizer, get_linear_schedule_with_warmup, GPT2LMHeadModel
-from nli.pretrainlm.pt_dataloader import BookCorpusLmLoader
+from transformers import GPT2Tokenizer, get_linear_schedule_with_warmup, get_cosine_schedule_with_warmup, GPT2LMHeadModel, AdamW
+from nli.pretrain_lm.pt_dataloader import BookCorpusLmLoader
+from datasets import load_dataset
 
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
 
 #directory for data/train/val 
 
-parser.add_argument('--output_dir', default='pretrain-checkpoint', type=str)
+parser.add_argument('--output_dir', default='pretrain-checkpoint-new', type=str)
 parser.add_argument('--local_rank', default=0, type=int)
 #general training settings 
 parser.add_argument('--batch_size', default=128, type=int)
@@ -51,11 +52,11 @@ parser.add_argument('--use_cuda', default=False, type=bool, help = 'activate to 
 parser.add_argument('--learning_rate', default=1e-4, type=float)
 parser.add_argument('--tokenizer', default='regular', help='choose tokenizer: regular/bpe - for baseline model')
 parser.add_argument('--optimizer', default='adam', help='adam/adamW/sgd/..')
-parser.add_argument('--beta_1', default=0.99, type=float, help='beta1 for first moment')
-parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for second moment')
+parser.add_argument('--beta_1', default=0.9, type=float, help='beta1 for first moment')
+parser.add_argument('--beta_2', default=0.99, type=float, help='beta2 for second moment')
 parser.add_argument('--weight_decay', default=0, type=float)
 parser.add_argument('--eps', default=1e-8, type=float)
-parser.add_argument('--scheduler', default=None, type =bool, help='')
+parser.add_argument('--scheduler', default='cosine', type =str, help='')
 parser.add_argument('--num_warming_steps', default=0.1, type=float, help='number of warming steps for the scheduler - between 0 and 1')
 parser.add_argument('--dropout', default=0.5, type=float, help='')
 parser.add_argument('--grad_norm_clip', default=1, type=float, help='clip the norm')
@@ -64,8 +65,8 @@ parser.add_argument('--grad_accumulation_steps', default=1, type=int, help='numb
 # pretraining hyperparmeters 
 parser.add_argument('--left_context', default=True, type=bool)
 parser.add_argument('--right_context', default=True, type=bool)
-parser.add_argument('--max_context_length', default=256, type=int)
-parser.add_argument('--left_context_length', default=256, type=int)
+parser.add_argument('--max_context_length', default=128, type=int)
+parser.add_argument('--max_target_length', default=92, type=int)
 parser.add_argument('--context_window', default=1, type=int)
 
 def main(args):
@@ -91,10 +92,9 @@ def main(args):
     logger.info(output_dir)
 
     #initialize metric keeper 
-    stats = metrics.MetricKeeper(args.eval_measure.split(','))
-    test_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+    stats = metrics.MetricKeeper()
     if args.evaluate_during_training:
-        val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
+        val_stats = metrics.MetricKeeper()
 
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2', cache_dir = '../huggingface') 
     '''
@@ -102,8 +102,7 @@ def main(args):
     '''
     #initialize dataloader -- train
     dataset_kwargs = {
-        'data': data
-        'tokenizer':tokenier,
+        'tokenizer':tokenizer,
         'left_context':args.left_context,
         'right_context':args.right_context,
         'max_context_length':args.max_context_length,
@@ -112,8 +111,18 @@ def main(args):
         'shuffle':args.shuffle,
         'distributed': (args.n_gpu > 1),
         'num_workers': args.num_workers,
+        'batch_size': args.batch_size
     }
-    train_loader = BookCorpusLmLoader(**kwargs)
+    logger.info('loading train bookcorpus :TRAIN')
+    train_data = load_dataset("bookcorpus", cache_dir = '../huggingface')['train']['text']
+    #train_data = load_dataset("bookcorpus", split = 'train[:95%]', cache_dir = '../huggingface/bookcorpus') 
+    train_loader = BookCorpusLmLoader(train_data, **dataset_kwargs)    
+
+    if args.evaluate_during_training:
+        logger.info('loading train bookcorpus : taking last 5% as VAL, we will keep track of perplexity')
+        val_data = load_dataset("bookcorpus", split = 'train[95%:]', cache_dir = '../huggingface')
+        val_loader = BookCorpusLmLoader(val_data, **kwargs)
+
     model = GPT2LMHeadModel.from_pretrained('gpt2', cache_dir = '../huggingface')
 
     if args.n_gpu > 1:
@@ -128,25 +137,27 @@ def main(args):
     '''
     #group parmaeters if we are weight decaying
     if args.weight_decay:
-        parameters = utils.prepare_model_parameters_weight_decay(model.named_parameters())
+        parameters = utils.prepare_model_parameters_weight_decay(model.named_parameters(), args.weight_decay)
     else:
         parameters = model.parameters()
 
     #optimizer 
     if args.optimizer == 'adam':
-        optimizer = torch.optim.Adam(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
+        optimizer = torch.optim.AdamW(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
 
     #scheduler
     scheduler = None 
     if args.scheduler:
         num_training_steps = int((len(train_loader)//args.batch_size)*args.num_epochs)
         num_warmup_steps = int(num_training_steps*args.num_warming_steps)
-        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps,num_training_steps)
+        if args.scheduler ==  'linear':
+            scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps)
+        elif args.scheduler == 'cosine':
+            scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps)
             
     '''
     TRAIN
     '''
-
     for epoch in tqdm(range(args.num_epochs), desc='epoch'):
         run_epoch(
             args=args,
@@ -164,18 +175,35 @@ def main(args):
         logger.info('\nTrain stats:')
         stats.print()
 
-    if args.local_rank == 0:
-        model.save_pretrained(output_dir)
+        if args.evaluate_during_training:
+            run_epoch(
+            args=args,
+            model=model,
+            device =device,
+            data_loader=val_loader,
+            optimizer=None,
+            scheduler=None,
+            stats=val_stats, 
+            desc='val_step', 
+            train=False,
+            use_cuda=True)
+            #print for status update
+            logger.info('\nVal stats:')
+            val_stats.print()
+
+        if args.local_rank == 0:
+            model_to_save = model.module if hasattr(model,'module') else model  # Take care of distributed/parallel training
+            model_to_save.save_pretrained(os.path.join(output_dir, 'gpt2-epoch-{}'.format(epoch)))
     '''
     SAVE STATS 
     '''
-
-    checkpoint = {
-    'stats': stats.keeper,
-    'args': args.__dict__
-    }
-    with open(os.path.join(output_dir, 'stats.json'), 'w') as f:
-        json.dump(checkpoint, f, indent=4)
+    if args.local_rank == 0:
+        checkpoint = {
+        'stats': stats.keeper,
+        'args': args.__dict__
+        }
+        with open(os.path.join(output_dir, 'stats.json'), 'w') as f:
+            json.dump(checkpoint, f, indent=4)
 
 def run_epoch(
             args,
@@ -206,6 +234,7 @@ def run_epoch(
         segment_ids = batch['segment_ids']
         target_ids = batch['target_ids']
 
+
         if use_cuda:
             input_ids = input_ids.to(device)
             target_ids = target_ids.to(device)
@@ -215,31 +244,25 @@ def run_epoch(
         if train:
             output = model(
                     input_ids = input_ids, 
-                    attention_masks = attention_masks, 
-                    toke_type_ids = segment_ids,
+                    attention_mask = attention_masks, 
+                    token_type_ids = segment_ids,
                     labels = target_ids )
             loss = output.loss 
         else:
             with torch.no_grad():
                 output = model(
                     input_ids = input_ids, 
-                    attention_masks = attention_masks, 
-                    toke_type_ids = segment_ids,
+                    attention_mask = attention_masks, 
+                    token_type_ids = segment_ids,
                     labels = target_ids )
                 loss = output.loss
 
         if train:
             loss.backward()
             
-            '''
-            implement gradient norm clip 
-            '''
             if args.grad_norm_clip:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_norm_clip)
-            '''
-            implement gradient accumulation here
 
-            '''
             grad_acc_steps += 1
             if args.grad_accumulation_steps == grad_acc_steps:
                 optimizer.step()
@@ -248,15 +271,23 @@ def run_epoch(
             if scheduler:
                 scheduler.step()
             optimizer.zero_grad()
+        
+        total_loss += loss.mean().item()
         logger.info('{}: At step {}, loss = {}'.format(desc, step, loss.mean().item()))
+
+        if step % 100000 == 0 and  step != 0:
+            model_to_save = model.module if hasattr(model,'module') else model  # Take care of distributed/parallel training
+            model_to_save.save_pretrained(os.path.join(output_dir, 'gpt2-step-{}'.format(step)))
 
     #update keepr for log liklihood
     stats.update('loglikelihood',total_loss / len(data_loader))
+    stats.update('perplexity', np.exp(total_loss / len(data_loader)))
 
 if __name__ == '__main__':
     args = parser.parse_args()
     #If you set the log level to INFO, it will include INFO, WARNING, ERROR, and CRITICAL messages
     # make output directory if it does not exist 
+    
     output_dir = os.path.join(args.output_dir, '{}_{}'.format('checkpoint', 'gpt2'))
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
