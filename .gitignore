@@ -1,5 +1,3 @@
-
-
 data/.DS_Store
 .DS_Store
 *.pyc
@@ -18,3 +16,5 @@ data/checkpoint_pretrained-transformers-cls/checkpoint_pretrained-transformers-c
 *.bin
 checkpoint
 *.out
+scripts/pretrained_BERTmlm/pytorch_model.bin
+
