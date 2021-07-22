@@ -2,8 +2,8 @@
 
 import torch
 import torch.nn as nn
-#import gensim
-#import gensim.downloader as api
+import gensim
+import gensim.downloader as api
 
 def build_embedding_glove(vocab, glove_name, padding_idx, freeze=True):
 	'''
