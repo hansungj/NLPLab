@@ -1,4 +1,5 @@
 '''
+DEPCRECATED
 Author:  Sungjun Han, Anastasiia 
 Description:
 Main train method of all models for aNLI task - also evaluates during training. 
@@ -23,7 +24,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 import nli.utils as utils 
-from nli.dataloader import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, AlphaDatasetDualEncoder, load_dataloader_base, load_dataloader_transformer,load_dataloader_BBDualEnc
+from nli.dataloader import AlphaDatasetBaseline, AlphaDataset, AlphaDatasetTransformer, AlphaDatasetDualEncoder, load_dataloader_base, prepare_dataloader,load_dataloader_BBDualEnc
 import nli.preprocess as preprocess
 import nli.metrics as metrics
 from nli.tokenization import WhiteSpaceTokenizer
@@ -235,7 +236,7 @@ def baseline_test(
 
 	return y_pred, test_stats 
 
-def sem_initialize_model(args):
+def sem_initialize_model(args, tokenizer, vocab):
 	'''
 	Author: Sungjun Han, Anastasiia
 	Description: initializes sem (static embedding) neural network baseline models
@@ -568,7 +569,7 @@ def train(
 				logger.info('Early stopping patience {}'.format(earlyStop))
 
 	torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type + '.pt') )
-	if evaluate:
+	if evaluate_during_training:
 		return model, (stats, val_stats)
 		
 	return model, stats
@@ -760,7 +761,7 @@ def main(args):
 								drop_last = True, 
 								num_workers = args.num_workers)
 
-		model = sem_initialize_model(args)
+		model = sem_initialize_model(args, tokenizer, vocab)
 	
 	elif args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling', 'pretrained-transformers-decoder']:
 
