@@ -20,7 +20,12 @@ class PretrainedTransformerCLS(nn.Module):
 
 		super().__init__()
 
-		self.model = AutoModel.from_pretrained(model_name)
+		if 'pretrained_BERTmlm' in model_name:
+			model = AutoModel.from_pretrained(model_name)
+			self.model = model.base_model
+		else:
+			self.model = AutoModel.from_pretrained(model_name)
+		
 		self.config = AutoConfig.from_pretrained(model_name)
 
 		hidden_size = self.config.hidden_size
