@@ -529,7 +529,10 @@ def main(args):
 				}
 
 		if 'bert' in args.pretrained_name:
-			tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
+			if 'BERTmlm' in args.pretrained_name:
+				tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+			else:
+				tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
 		
 		elif 'gpt' in args.pretrained_name:
 			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name) 
