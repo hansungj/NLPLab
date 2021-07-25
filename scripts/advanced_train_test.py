@@ -572,7 +572,10 @@ def main(args):
 	elif args.model_type =='dual_enc_bert':
 
 		# initialize tokenizer
-		tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
+		if 'BERTmlm' in args.pretrained_name:
+				tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+			else:
+				tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
 		#ensure that the tokenizer has all the functional tokens
 		if tokenizer.cls_token == None:
 			tokenizer.add_special_tokens({'cls_token': '[CLS]'})
