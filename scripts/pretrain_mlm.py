@@ -59,12 +59,12 @@ parser.add_argument('--save_model_to', default='pretrained_BERTmlm', type=str)
 
 def main(args):
 
+	#fixing the random seed
 	utils.set_seed(args.seed)
 
-	
 	tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
 	#tokenizer = BertTokenizer.from_pretrained(args.pretrained_name, cache_dir = '../hugginface') #for running on the ims server
-	
+
 	#ensuring that all functional tokens are added to the default tokenizer
 	if tokenizer.cls_token == None:
 		tokenizer.add_special_tokens({'cls_token': '<CLS>'})
@@ -88,16 +88,14 @@ def main(args):
 						'number_of_samples':args.number_of_samples
 						}
 
-	
 	logger.info('Creating Dataloader:')
 	logger.info(dataloader_kwargs)
 
 	train_loader = MLM_Dataloader(**dataloader_kwargs)
 
-	
 	logger.info('Initializing a BERT model: {}'.format(args.pretrained_name))
 	model = BertMLM(args.pretrained_name, tokenizer)
-	
+
 	# We take learning rate that is proportional to the learning rate in original BERT paper (https://arxiv.org/pdf/1810.04805.pdf)
 	# wrt to batch size:
 	# args.learning_rate = original learning rate / original batch size = 1e-4 / 256 = 4e-7
@@ -166,6 +164,7 @@ def main(args):
 			step += 1
 			logger.info('Epoch: {}, step {}, loss value {}'.format(epoch, step, loss.item()))
 
+			#save model every 100000 steps
 			if step % 100000 == 0:
 				save_path = args.save_model_to + '/' + str(epoch) + '/' + str(step)
 				model.model.save_pretrained(save_paths)
