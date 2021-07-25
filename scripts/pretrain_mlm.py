@@ -63,7 +63,7 @@ def main(args):
 	utils.set_seed(args.seed)
 
 	tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
-	#tokenizer = BertTokenizer.from_pretrained(args.pretrained_name, cache_dir = '../hugginface') #for running on the ims server
+	#tokenizer = BertTokenizer.from_pretrained(args.pretrained_name, cache_dir = '../huggingface') #for running on the ims server
 
 	#ensuring that all functional tokens are added to the default tokenizer
 	if tokenizer.cls_token == None:
@@ -123,6 +123,7 @@ def main(args):
 	starttime = None
 
 	scheduler = None 
+	#setting the scheduler if needed
 	if args.scheduler:
 		num_training_steps = int((len(train_loader)//args.batch_size)*args.epochs)
 		scheduler = get_cosine_schedule_with_warmup(optim, args.num_warmup_steps, num_training_steps)
