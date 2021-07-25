@@ -1,9 +1,7 @@
 '''
 Author: Anastasiia 
-Description: for pretraining BERT
+Main train method for further pretraining of BERT on the Masked Language Modelling Task
 '''
-# tutorial by James Briggs used:
-# https://towardsdatascience.com/masked-language-modelling-with-bert-7d49793e5d2c
 
 from transformers import BertTokenizer
 from transformers import AdamW
@@ -22,7 +20,7 @@ import nli.utils as utils
 from nli.pretrain_mlm.bert_mlm import BertMLM
 from nli.pretrain_mlm.dataloader import MLM_Dataloader
 
-from transformers import get_linear_schedule_with_warmup
+from transformers import get_cosine_schedule_with_warmup
 
 
 parser = argparse.ArgumentParser()
@@ -42,15 +40,15 @@ parser.add_argument('--pretrained_name', default='bert-base-uncased', type=str, 
 #training
 parser.add_argument('--max_samples_per_epoch', default=1000, type=int, help='Number of samples per epoch')
 parser.add_argument('--epochs', default=100, type=int, help='Number of epochs')
+parser.add_argument('--learning_rate', default=4e-7, type=float)
 
 parser.add_argument('--seed', default=1234, type=int, help='set seed for random, numpy, torch, torch.cuda')
 
 parser.add_argument('--grad_norm_clip', default=1, type=float, help='clip the norm')
-parser.add_argument('--scheduler', default=None, type =bool, help='')
-parser.add_argument('--num_warmup_steps', default=10000, type =int, help='')
+parser.add_argument('--scheduler', default=None, type =bool, help='Activate to use a scheduler')
+parser.add_argument('--num_warmup_steps', default=10000, type =int, help='Number of warmup steps')
 
-
-parser.add_argument('--use_cuda', default=False, type=bool, help = 'activate to use cuda')
+parser.add_argument('--use_cuda', default=False, type=bool, help = 'Activate to use cuda')
 
 parser.add_argument('--batch_size', default=128, type=int)
 parser.add_argument('--num_workers', default=0, type=int)
@@ -65,8 +63,9 @@ def main(args):
 
 	
 	tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
-	#tokenizer = BertTokenizer.from_pretrained(args.pretrained_name, cache_dir = '../hugginface')
+	#tokenizer = BertTokenizer.from_pretrained(args.pretrained_name, cache_dir = '../hugginface') #for running on the ims server
 	
+	#ensuring that all functional tokens are added to the default tokenizer
 	if tokenizer.cls_token == None:
 		tokenizer.add_special_tokens({'cls_token': '<CLS>'})
 	if tokenizer.sep_token == None:
@@ -95,12 +94,14 @@ def main(args):
 
 	train_loader = MLM_Dataloader(**dataloader_kwargs)
 
-	#val_loader = 
 	
 	logger.info('Initializing a BERT model: {}'.format(args.pretrained_name))
 	model = BertMLM(args.pretrained_name, tokenizer)
 	
-	optim = AdamW(model.parameters(), lr=5e-5)
+	# We take learning rate that is proportional to the learning rate in original BERT paper (https://arxiv.org/pdf/1810.04805.pdf)
+	# wrt to batch size:
+	# args.learning_rate = original learning rate / original batch size = 1e-4 / 256 = 4e-7
+	optim = AdamW(model.parameters(), lr=args.learning_rate*args.batch_size)
 
 	if args.use_cuda:
 		if not torch.cuda.is_available():
@@ -108,7 +109,7 @@ def main(args):
 		device = torch.device("cuda")
 	else:
 		device = torch.device('cpu')
-		
+
 	model_kwargs = {'epochs':args.epochs,
 						'max_samples_per_epoch':args.max_samples_per_epoch,
 						'grad_norm_clip':args.grad_norm_clip,
@@ -117,48 +118,40 @@ def main(args):
 						'use_cuda':args.use_cuda
 						}
 	logger.info('Model settings:')
-	logger.info(dataloader_kwargs)
-	
+	logger.info(model_kwargs)
+
 	model.to(device)
 	model.train()
 	starttime = None
-	
+
 	scheduler = None 
 	if args.scheduler:
-		num_training_steps = int((len(train_loader)//args.batch_size)*args.num_epochs)
-		scheduler = get_linear_schedule_with_warmup(optimizer, args.num_warmup_steps,num_training_steps)
+		num_training_steps = int((len(train_loader)//args.batch_size)*args.epochs)
+		scheduler = get_cosine_schedule_with_warmup(optim, args.num_warmup_steps, num_training_steps)
 	
 	for epoch in range(args.epochs):
-		
-		#if not starttime:
-			#starttime = time.time()
-			#logger.info('Starting epoch {}'.format(epoch))
-		#else:
-			#logger.info('The epoch {} lasted for '.format(epoch-1, starttime - time.time()))
-			#logger.info('Starting epoch {}'.format(epoch))
-			#starttime = time.time()
-		
+		# For the training loop tutorial by James Briggs was used:
+		# https://towardsdatascience.com/masked-language-modelling-with-bert-7d49793e5d2c
+
 		starttime_loop = time.time()
-		
+
 		loop = tqdm(train_loader, leave=True)
-		
-		#logger.info('Loading data lasted for'.format(starttime_loop - time.time()))
-		
+
+		#to save model every 100000 steps
 		step = 0
-		
+
 		for batch in loop:
-			#logger.info('Working with batch {}'.format(t))
 			optim.zero_grad()
-			
+
 			input_ids = batch['input_ids'].to(device)
 			masks = batch['masks'].to(device)
 			labels = batch['target_ids'].to(device)
 			segment_ids = batch['segment_ids'].to(device)
 
 			logits, loss = model(input_ids, segment_ids = segment_ids, attention_mask=masks, labels=labels)
-			
+
 			loss.backward()
-			
+
 			if args.grad_norm_clip:
 				torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_norm_clip)
 
@@ -174,15 +167,11 @@ def main(args):
 			logger.info('Epoch: {}, step {}, loss value {}'.format(epoch, step, loss.item()))
 
 			if step % 100000 == 0:
-				save_path = args.save_model_to + '/' + str(step)
+				save_path = args.save_model_to + '/' + str(epoch) + '/' + str(step)
 				model.model.save_pretrained(save_paths)
 
-	
-	#wrapped_model = model.model.base_model
-	#wrapped_model.save_pretrained(args.save_model_to)
-	
 	model.model.save_pretrained(args.save_model_to)
-	
+
 
 if __name__ == '__main__':
 	args = parser.parse_args()
