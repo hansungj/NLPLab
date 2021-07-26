@@ -52,8 +52,9 @@ class LMClassificationDataset(Dataset):
         # random.shuffle(stories)
         # story1, story2 = stories 
 
-        story1_tokens_id, story1_segment_ids, story1_masks, story1_reference = self.process_story(story1)
-        story2_tokens_id, story2_segment_ids, story2_masks, story2_reference = self.process_story(story2)
+        label = self.data['label'][idx]
+        story1_tokens_id, story1_segment_ids, story1_masks, story1_reference, story1_target = self.process_story(story1, (label == 0))
+        story2_tokens_id, story2_segment_ids, story2_masks, story2_reference, story2_target= self.process_story(story2, (label == 1))
 
         item = {}
         item['story1_input_ids'] = torch.tensor(story1_tokens_id)
@@ -64,11 +65,13 @@ class LMClassificationDataset(Dataset):
         item['story2_masks'] = torch.tensor(story2_masks)
         item['story1_reference'] = story1_reference
         item['story2_reference'] = story2_reference
+        item['story1_target'] = torch.tensor(story1_target)
+        item['story2_target'] = torch.tensor(story2_target)
         item['label'] = torch.tensor(self.data['label'][idx])
 
         return item
 
-    def process_story(self, input):
+    def process_story(self, input, correct=True):
 
         segment_ids = []
         tokens = []
@@ -78,9 +81,16 @@ class LMClassificationDataset(Dataset):
             #     control_code = "observation {} : ".format(i+1)
             # else:
             #     control_code = "hypothesis : "
+            if i == 0:
+                story = 'before :  ' + story
+            elif i == 1:
+                story = ' | after :  ' + story
+            else:
+                story = ' | hypothesis :  ' + story
 
-            if i !=0:
-                story = ' $ ' + story
+            # if i !=0:
+            #     story = ' | ' + story
+            
             toks = self.tokenizer.tokenize(story)
 
             # if i != 0:
@@ -102,7 +112,8 @@ class LMClassificationDataset(Dataset):
 
             tokens.extend(toks)
 
-            if i % 2 == 0:
+            # if i % 2 == 0:
+            if i != self.target_index: # apply the segment id for the hypothesis differently than the observation
                 segment_ids.extend(len(toks)*[0])
             else: 
                 segment_ids.extend(len(toks)*[1])
@@ -113,8 +124,14 @@ class LMClassificationDataset(Dataset):
 
         masks = [1]*len(tokens_id)
 
+        if correct:
+            target = tokens_id.copy()
+            target[-1] = -100 # for the last token is CLS 
+        else:
+            target = [-100]*len(tokens_id)
+
         assert(len(tokens_id) == len(segment_ids))
-        return tokens_id, segment_ids, masks, reference 
+        return tokens_id, segment_ids, masks, reference, target
 
 def lm_transformer_collate_fn(batch):
     '''
@@ -136,12 +153,18 @@ def lm_transformer_collate_fn(batch):
 
     story1_masks, _ = merge(item['story1_masks'],pad_id)
     story2_masks, _ = merge(item['story2_masks'],pad_id)
+
+    target_pad_id = torch.tensor(-100)
+    story1_target, _ = merge(item['story1_target'],target_pad_id)
+    story2_target, _ = merge(item['story2_target'],target_pad_id)
+
     label = torch.stack(item['label']).long()
 
     d = {}
     d['input_ids'] = (story1_input_ids, story2_input_ids)
     d['segment_ids'] = (story1_segment_ids, story2_segment_ids)
     d['input_lengths'] = (story1_input_length,story2_input_length)
+    d['targets'] = (story1_target, story2_target)
     d['masks'] = (story1_masks, story2_masks)
     d['reference'] = (item['story1_reference'], item['story2_reference'])
     d['label'] = label

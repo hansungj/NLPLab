@@ -32,6 +32,7 @@ class BookCorpusLmLoader(DataLoader):
         left_context = kwargs.pop('left_context', True)
         right_context = kwargs.pop('right_context', False )
         context_window = kwargs.pop('context_window', 1)
+        random_negative_sample = kwargs.pop('random_negative_sample', 0.)
 
         # define dataset here 
         dataset = BookCorpusLmDataset(
@@ -41,7 +42,8 @@ class BookCorpusLmLoader(DataLoader):
             right_context,
             max_context_length,
             max_target_length,
-            context_window)
+            context_window,
+            random_negative_sample)
 
         # if distributed use Sampler and set shuffle to False 
         distributed = kwargs.pop('distributed', False)
@@ -60,10 +62,12 @@ def collate_fn_bookcorpus_lm(data):
         batch[key] = [d[key] for d in data]
 
     pad_id = torch.tensor(0)
-    input_ids, input_ids_lengths = merge(batch['input_ids'], pad_id)
-    target_ids, _ = merge(batch['target_ids'], pad_id)
+    target_pad_id = torch.tensor(-100)
+    input_ids, lengths = merge(batch['input_ids'], pad_id)
+    target_ids, _ = merge(batch['target_ids'], target_pad_id)
     segment_ids, _ = merge(batch['segment_ids'], pad_id)
     masks, _  = merge(batch['attention_masks'], pad_id)
+    labels = torch.stack(batch['labels'])
 
     item = {}
     item['input_ids'] = input_ids
@@ -71,7 +75,8 @@ def collate_fn_bookcorpus_lm(data):
     item['segment_ids'] = segment_ids 
     item['attention_masks']= masks
     item['reference'] = batch['reference']
-
+    item['labels'] = labels
+    item['lengths'] = lengths
     return item 
 
 class BookCorpusLmDataset(Dataset): 
@@ -89,7 +94,8 @@ class BookCorpusLmDataset(Dataset):
         right_context=False,
         max_context_length=128,
         max_target_length=128,
-        context_window=1):
+        context_window=1,
+        random_negative_sample = 0.):
         super().__init__()
 
         self.data = data
@@ -99,6 +105,7 @@ class BookCorpusLmDataset(Dataset):
         self.max_context_length = max_context_length
         self.max_target_length = max_target_length
         self.context_window = context_window
+        self.random_negative_sample = random_negative_sample
 
         #left context and right context cannot be both False 
         assert(left_context or right_context)
@@ -121,26 +128,37 @@ class BookCorpusLmDataset(Dataset):
         if idx == len(self.data)-1 and self.right_context:
             idx -= 1 # we cannot use the last sample because its subsequent context does not exist 
 
-        target = self.data[idx] 
+        #random negative sample 
+        u = random.random()
+        if  u < self.random_negative_sample:
+            # randomly sample to create a negative sample
+            rand_idx = random.randint(0, len(self.data)-1)
+            target = self.data[rand_idx] 
+            label = 1 # negative 
+        else:
+            target = self.data[idx] 
+            label = 0 # positive 
+
         control = []
         #random sample 
         if self.left_context:
             l_idx=random.randint(max(0,idx-self.context_window),idx-1)
-            #l_context = 'observation 1 : ' + self.data[l_idx]
-            l_context= self.data[l_idx]
+            l_context = 'before : ' + self.data[l_idx]
+            #l_context= self.data[l_idx]
             control.append(l_context)
         
         if self.right_context:
             r_idx=random.randint(idx+1, min(len(self.data)-1,idx+self.context_window))
-            #r_context = 'observation 2 : ' + self.data[r_idx]
-            r_context= self.data[r_idx]
+            r_context = 'after : ' + self.data[r_idx]
+            #r_context= self.data[r_idx]
             control.append(r_context)
 
         segment_ids = []
         tokens_all = []
         for i, text in enumerate(control):
+
             if i != 0 : # add separation 
-                text = ' $ ' + text
+                text = ' | ' + text
 
             tokens = self.tokenizer.tokenize(text)
             if i == 0:
@@ -160,13 +178,14 @@ class BookCorpusLmDataset(Dataset):
         
         input_ids = self.tokenizer.convert_tokens_to_ids(tokens_all)
         target_ids = [-100] * len(input_ids) # mask out the output tokens 
+             
 
         #add control code - because this should be masked as well 
-        target_control_code = '$'
+        target_control_code = ' | hypothesis : '
         target_control_code = self.tokenizer.tokenize(target_control_code)
         target_ids.extend([-100]*len(target_control_code))
         input_ids.extend(self.tokenizer.convert_tokens_to_ids(target_control_code))
-        
+    
         tokens = self.tokenizer.tokenize(target)
         ids = self.tokenizer.convert_tokens_to_ids(tokens)
 
@@ -174,10 +193,17 @@ class BookCorpusLmDataset(Dataset):
             ids=ids[:self.max_target_length-1]
 
         ids.append(self.tokenizer.eos_token_id)
-
+        ids.append(self.tokenizer.cls_token_id)
         input_ids.extend(ids)
-        target_ids.extend(ids)
 
+        #if negative sampling then do not calcaulte the loss 
+        if  u < self.random_negative_sample:
+            target_ids.extend([-100]*len(ids))
+        else:
+            ids[-1] = -100 # dont predict the cls token
+            target_ids.extend(ids)
+
+        #segment_ids.extend([1]*len(ids))
         segment_ids.extend([1]*(len(ids) + len(target_control_code)))
         
         # if len(control) % 2 == 0: # 0, 1, 0
@@ -186,13 +212,13 @@ class BookCorpusLmDataset(Dataset):
         #     segment_ids.extend([1]*(len(ids) + len(target_control_code)))
 
         masks = [1]*len(input_ids)
-
         d = {}
         d['input_ids'] = torch.tensor(input_ids)
         d['target_ids'] = torch.tensor(target_ids)
         d['segment_ids'] = torch.tensor(segment_ids)
         d['attention_masks'] = torch.tensor(masks)
         d['reference'] = ' | '.join(control) + ' $ ' + target 
+        d['labels'] = torch.tensor(label).float()
 
         return d
 

@@ -127,20 +127,11 @@ class PretrainedDecoderTransformerDual(nn.Module):
             masks1,
             masks2,
             segment_ids1, 
-            segment_ids2):
-
-        # using the mask and only calculate the language modelling for the correct 
-        if self.label_mask:
-            label_mask1 = labels
-            label_mask2 = (labels == 0).long()
-            label1 = self.lm_fill(input1, label_mask1)
-            label2 = self.lm_fill(input2, label_mask2)
-            output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = label1)
-            output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = label2)
-        else:
-        
-            output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = input1)
-            output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = input2)
+            segment_ids2,
+            target1, 
+            target2):
+        output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = target1)
+        output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = target2)
 
         #take the cls 
         B= labels.size(0)
@@ -222,20 +213,12 @@ class PretrainedDecoderTransformerDualSingleClassifier(nn.Module):
             masks1,
             masks2,
             segment_ids1, 
-            segment_ids2):
-
-        # using the mask and only calculate the language modelling for the correct 
-        if self.label_mask:
-            label_mask1 = labels
-            label_mask2 = (labels == 0).long()
-            label1 = self.lm_fill(input1, label_mask1)
-            label2 = self.lm_fill(input2, label_mask2)
-            output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = label1)
-            output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = label2)
-        else:
-        
-            output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = input1)
-            output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = input2)
+            segment_ids2,
+            target1, 
+            target2):
+            
+        output1 = self.model(input1, attention_mask = masks1, token_type_ids = segment_ids1, labels = target1)
+        output2 = self.model(input2, attention_mask = masks2, token_type_ids = segment_ids2, labels = target2)
 
         #take the cls 
         B= labels.size(0)
