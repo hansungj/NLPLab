@@ -40,10 +40,6 @@ Contributors:
     - nli/**tokenization.py** : holds a tokenizer object class used by DL baselines
     - utils/**utils.py** : various utility functions 
 
-
-2. all reusable functions are under the nli folder (which can be used as a package)
-3. all models are under the nli/models folder (which can also be used as a package)
-
 ## Setup
 ```
 conda env create -f environment.yml
