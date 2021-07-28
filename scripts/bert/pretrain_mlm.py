@@ -17,7 +17,7 @@ import torch
 
 
 import nli.utils as utils 
-from nli.pretrain_mlm.bert_mlm import BertMLM
+from nli.models.BERT import BertMLM
 from nli.pretrain_mlm.dataloader import MLM_Dataloader
 
 from transformers import get_cosine_schedule_with_warmup
