@@ -6,11 +6,39 @@ Contributors:
 - Sungjun Han 
 - Anastasiia Sirotina
 
-Our repository is structured in the following way:
-
-1. all executable scripts for training, evaluating, testing, etc will be in the "scripts" folder
-2. all reusable functions are under the nli folder (which can be used as a package)
-3. all models are under the nli/models folder (which can also be used as a package)
+# Repository Structure 
+- **scripts** : all runnable python scripts (i.e. train, test, build vocabulary ...) are in this folder
+    - scripts/**baseline** : all train/test python scripts for BoW and DL baseline models
+        - scripts/baseline/**baseline_train_test.py** : train/test python script for the BoW baseline models 
+        - scripts/baseline/**dl_baseline_train_test.py** : train/test python script for the DL baseline models 
+    - scripts/**bert** : all train/test python scripts for pretraining/fine-tuning BERT
+        - scripts/baseline/**advanced_train_test.py** : train/test python script for the BERT based models 
+        - scripts/baseline/**pretrain_mlm.py** : train/test python script for the further pretraining BERT 
+    - scripts/**gpt2** : all train/test python scripts for pretraining/fine-tuning GPT-2
+        - scripts/baseline/**gpt2test.py** : test python script for GPT-2
+        - scripts/baseline/**gpt2train.py** : train (fine-tuning) python script for GPT-2
+        - scripts/baseline/**pretrain-lm-aux.py** : pretraining (fine-tuning) python script for GPT-2 with auxiliary pretraining objective 
+        - scripts/baseline/**preetrain-lm.py** : pretraining (fine-tuning) python script for GPT-2 without auxiliary pretraining objective 
+    - scripts/**annotate.py** :  creating manual human annotations for ART
+    - scripts/**build_vocab.py** :  building vocabulary for the baselines
+- **nli** : auxiliary functions used by the files in scripts
+    - nli/**models** : all models are defined in this directory (baseline/GPT2/BERT)
+        - nli/models-lm/**BoW.py** : all python object classes for BoW baseline model
+        - nli/models-lm/**GPT2.py** : all PyTorch nn.Module classes for GPT2 models 
+        - nli/models-lm/**StaticEmb.py** : all PyTorch nn.Module classes for DL baseline models
+        - nli/models-lm/**Transformers.py** : all PyTorch nn.Module classes for transformer baseline models  
+    - nli/**pretrain-mlm** : all functions used by BERT training/testing for pretraining 
+        - nli/pretrain-mlm/**dataloader.py** : holds PyTorch datasset and dataloader objects for pretraining for BERT
+    - nli/**pretrain-lm** : all models (baseline/GPT2/BERT)
+        - nli/pretrain-lm/**ft_dataloader.py** : holds PyTorch datasset and dataloader objects for finetuning for GPT-2
+        - nli/pretrain-lm/**pt_dataloader.py** : holds PyTorch datasset and dataloader objects for pretraining for GPT-2
+    - nli/**dataloader.py** : holds PyTorch datasset and dataloader objects for preparing ART for baselines and BERT
+    - nli/**embedding.py** : loads GloVe embeddings to be used by DL baselines
+    - nli/**metrics.py** : holds an object class that is used to keep evaluation results during training/testing
+    - nli/**preprocess.py** : functions used for preprocessing the dataset
+    - nli/**similarity.py** : distance and similarity measures for BoW baseline
+    - nli/**tokenization.py** : holds a tokenizer object class used by DL baselines
+    - nli/**utils.py** : various utility functions 
 
 ## Setup
 ```

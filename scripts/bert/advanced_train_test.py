@@ -272,25 +272,6 @@ def train(
 
 				logits, loss = model(input_ids, segment_ids, masks, y=label)
 			
-			elif model_type in ['pretrained-transformers-decoder']:
-				if use_cuda:
-					batch['input_ids'] = batch['input_ids'].to(device)
-					batch['segment_ids'] = batch['segment_ids'].to(device)
-					batch['masks'] = batch['masks'].to(device)
-					batch['label'] = batch['label'].to(device)
-					batch['input_lengths'] = batch['input_lengths'].to(device)
-
-				inputs = {
-				'input_ids': batch['input_ids'],
-				'attention_mask':batch['segment_ids'],
-				'token_type_ids':batch['masks'],
-				'mc_token_ids':batch['input_lengths'] -1,
-				'labels':batch['label']
-				}
-				
-				logits, loss = model(**inputs)
-				label = batch['label']
-			
 			elif model_type in ['dual_enc_bert']:
 				if use_cuda:
 					batch['input1'] = batch['input1'].to(device)
@@ -412,35 +393,6 @@ def evaluate(
 					label = label.to(device)
 
 				logits, loss = model(input_ids, segment_ids, masks, label)
-			
-			elif model_type in ['pretrained-transformers-decoder']:
-				if use_cuda:
-					batch['input_ids'] = batch['input_ids'].to(device)
-					batch['segment_ids'] = batch['segment_ids'].to(device)
-					batch['masks'] = batch['masks'].to(device)
-					batch['label'] = batch['label'].to(device)
-					batch['input_lengths'] = batch['input_lengths'].to(device)
-					batch['lm_label'] = batch['lm_label'].to(device)
-
-				inputs = {
-				'input_ids': batch['input_ids'],
-				'attention_mask':batch['segment_ids'],
-				'token_type_ids':batch['masks'],
-				'mc_token_ids':batch['input_lengths'] -1,
-				'mc_labels':batch['label'],
-				'labels': batch['lm_label']
-				}
-				
-				logits, loss_mc, loss_lm = model(**inputs)
-				loss = 2*loss_mc + loss_lm
-
-				label = batch['label']
-			
-			elif model_type in ['gpt2-zeroshot']:
-				if use_cuda:
-					batch['input_ids_1'] = batch['input_ids_1'].to(device)
-					batch['input_ids_2'] = batch['input_ids_2'].to(device)
-					batch['masks'] = batch['masks'].to(device)
 
 			elif model_type in ['dual_enc_bert']:
 				if use_cuda:
@@ -519,7 +471,7 @@ def main(args):
 		val_stats = metrics.MetricKeeper(args.eval_measure.split(','))
 
 	#prepare kwargs for a model of a specific model types
-	if args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling', 'pretrained-transformers-decoder']:
+	if args.model_type in ['pretrained-transformers-cls', 'pretrained-transformers-pooling',]:
 
 		dataset_kwargs = {'data_path': args.train_tsv,
 				'max_samples': args.max_samples_per_epoch,
@@ -533,14 +485,6 @@ def main(args):
 				tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 			else:
 				tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
-		
-		elif 'gpt' in args.pretrained_name:
-			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name) 
-			tokenizer.add_special_tokens({'cls_token': '[CLS]'})
-			dataset_kwargs['sep_token'] = '|'
-			dataset_kwargs['pad_token_id'] = 0
-			dataset_kwargs['cls_at_start'] = False
-		
 		dataset_kwargs['tokenizer'] = tokenizer
 
 		#initialize dataloader -- train

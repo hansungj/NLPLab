@@ -288,18 +288,8 @@ def transformer_initialize_model(args, vocab_size = None):
 	elif args.model_type == 'pretrained-transformers-pooling':
 
 		model = PretrainedTransformerPooling(args.pretrained_name) # mean pooling 
-
-	elif args.model_type == 'pretrained-transformers-decoder':
-		if 'gpt' not in args.pretrained_name:
-			raise ValueError('for now we only support gpt model')
 			
 		model = PretrainedDecoderTransformerCLS(args.pretrained_name)
-
-	elif args.model_type == 'pretrained-transformers-decoder-dual':
-		if 'gpt' not in args.pretrained_name:
-			raise ValueError('for now we only support gpt model')
-
-		model = PretrainedDecoderTransformerDual(args.pretrained_name, vocab_size = vocab_size, pooling_type = None)	 # none means mean pooling 
 	
 	if args.n_gpu > 1:
 		model = nn.parallel.DistributedDataParallel(model, find_unused_parameters=True)
@@ -353,29 +343,6 @@ def test(
 					label = label.to(device)
 		
 				logits, loss = model(input_ids, segment_ids, masks, label)
-			
-			elif model_type in ['pretrained-transformers-decoder']:
-				if use_cuda:
-					batch['input_ids'] = batch['input_ids'].to(device)
-					batch['segment_ids'] = batch['segment_ids'].to(device)
-					batch['masks'] = batch['masks'].to(device)
-					batch['label'] = batch['label'].to(device)
-					batch['input_lengths'] = batch['input_lengths'].to(device)
-					batch['lm_label'] = batch['lm_label'].to(device)
-
-				inputs = {
-				'input_ids': batch['input_ids'],
-				'attention_mask':batch['segment_ids'],
-				'token_type_ids':batch['masks'],
-				'mc_token_ids':batch['input_lengths'] -1,
-				'mc_labels':batch['label'],
-				'labels': batch['lm_label']
-				}
-			
-				logits, loss_mc, loss_lm = model(**inputs)
-				loss = 2*loss_mc + loss_lm
-
-				label = batch['label']
 
 			elif model_type in ['dual_enc_bert']:
 				if use_cuda:
@@ -463,25 +430,6 @@ def train(
 					label = label.to(device)
 
 				logits, loss = model(input_ids, segment_ids, masks, y=label)
-			
-			elif model_type in ['pretrained-transformers-decoder']:
-				if use_cuda:
-					batch['input_ids'] = batch['input_ids'].to(device)
-					batch['segment_ids'] = batch['segment_ids'].to(device)
-					batch['masks'] = batch['masks'].to(device)
-					batch['label'] = batch['label'].to(device)
-					batch['input_lengths'] = batch['input_lengths'].to(device)
-
-				inputs = {
-				'input_ids': batch['input_ids'],
-				'attention_mask':batch['segment_ids'],
-				'token_type_ids':batch['masks'],
-				'mc_token_ids':batch['input_lengths'] -1,
-				'labels':batch['label']
-				}
-				
-				logits, loss = model(**inputs)
-				label = batch['label']
 			
 			elif model_type in ['dual_enc_bert']:
 				if use_cuda:
@@ -612,35 +560,6 @@ def evaluate(
 					label = label.to(device)
 
 				logits, loss = model(input_ids, segment_ids, masks, label)
-			
-			elif model_type in ['pretrained-transformers-decoder']:
-				if use_cuda:
-					batch['input_ids'] = batch['input_ids'].to(device)
-					batch['segment_ids'] = batch['segment_ids'].to(device)
-					batch['masks'] = batch['masks'].to(device)
-					batch['label'] = batch['label'].to(device)
-					batch['input_lengths'] = batch['input_lengths'].to(device)
-					batch['lm_label'] = batch['lm_label'].to(device)
-
-				inputs = {
-				'input_ids': batch['input_ids'],
-				'attention_mask':batch['segment_ids'],
-				'token_type_ids':batch['masks'],
-				'mc_token_ids':batch['input_lengths'] -1,
-				'mc_labels':batch['label'],
-				'labels': batch['lm_label']
-				}
-				
-				logits, loss_mc, loss_lm = model(**inputs)
-				loss = 2*loss_mc + loss_lm
-
-				label = batch['label']
-			
-			elif model_type in ['gpt2-zeroshot']:
-				if use_cuda:
-					batch['input_ids_1'] = batch['input_ids_1'].to(device)
-					batch['input_ids_2'] = batch['input_ids_2'].to(device)
-					batch['masks'] = batch['masks'].to(device)
 
 			elif model_type in ['dual_enc_bert']:
 				if use_cuda:
@@ -774,13 +693,6 @@ def main(args):
 
 		if 'bert' in args.pretrained_name:
 			tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
-		
-		elif 'gpt' in args.pretrained_name:
-			tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_name) 
-			tokenizer.add_special_tokens({'cls_token': '[CLS]'})
-			dataset_kwargs['sep_token'] = '|'
-			dataset_kwargs['pad_token_id'] = 0
-			dataset_kwargs['cls_at_start'] = False
 		
 		dataset_kwargs['tokenizer'] = tokenizer
 

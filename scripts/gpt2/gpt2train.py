@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 #directory for data/train/val 
 parser.add_argument('--train_tsv', default='data/alphanli/tsv/train.tsv', type=str)
-parser.add_argument('--val_tsv', default='data/alphanli/tsv/val_split.tsv', type=str)
+parser.add_argument('--val_tsv', default='data/alphanli/tsv/dev.tsv', type=str)
 parser.add_argument('--test_tsv', default='data/alphanli/tsv/test_split.tsv', type=str)
 
 parser.add_argument('--output_dir', default='checkpoint', type=str)
@@ -50,7 +50,7 @@ parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples
 parser.add_argument('--evaluate_during_training', default=False, type=bool, help='Decide to evaluate on validation set')
 parser.add_argument('--evaluate_training_during_training', default=False, type=bool, help='track training by evaluating periodically')
 parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evaluation measure') # put multiple eval measures separated by ','
-parser.add_argument('--seed', default=1234, type=int, help='set seed for random, numpy, torch, torch.cuda')
+parser.add_argument('--seed', default=None, type=int, help='set seed for random, numpy, torch, torch.cuda')
 parser.add_argument('--n_gpu', default=1, type=int)
 
 #model data settings 
@@ -75,10 +75,13 @@ parser.add_argument('--dropout', default=0.5, type=float, help='')
 parser.add_argument('--grad_norm_clip', default=1, type=float, help='clip the norm')
 parser.add_argument('--grad_accumulation_steps', default=None, type=int, help='number of steps to accumulate gradient')
 parser.add_argument('--early_stopping', default=10,  type=int, help='patience for early stopping - if 0 no early stopping used')
+parser.add_argument('--auxiliary_loss_lambda', default=0.25, type =float, help= 'loss to give for the auxiliary language modelling objective')
+parser.add_argument('--notes', default=None, type=str)
 
 def main(args):
 
-    utils.set_seed(args.seed)
+    if args.seed:
+        utils.set_seed(args.seed)
 
     if args.n_gpu > 1:
         #initializae to synchronize gpus
@@ -204,7 +207,7 @@ def main(args):
     '''
     TRAIN and Test
     '''
-    save_path =  os.path.join(output_dir, 'checkpoint_gpt2_dual' + '.pt')
+    save_path =  os.path.join(output_dir, 'checkpoint_gpt2_dual')
     val_accuracy = 0.0  
     earlyStop = 0
     for epoch in tqdm(range(args.num_epochs), desc='epoch'):
@@ -250,42 +253,41 @@ def main(args):
                     logger.info('Early stopping patience - resetting')
                     earlyStop = 0
                     if args.local_rank == 0: # save  only with the first 
-                        save_model(model, save_path)
+                        save_model(model, save_path + '.pt')
                     val_accuracy = current_accuracy
                     continue
 
                 earlyStop += 1
                 if args.early_stopping == earlyStop:
                     logger.info('Early stopping criterion met - terminating')
-                    if args.local_rank == 0: # save  only with the first 
-                        save_model(model, save_path)
                     break 
 
                 logger.info('Early stopping patience {}'.format(earlyStop))
-            else: # then just save the latest model 
+            else: 
+                # then just save every epoch 
                 if args.local_rank == 0: # save  only with the first
-                    save_model(model, save_path)
+                    save_model(model, save_path + '_{}.pt'.format(epoch))
                     
     # load and test 
-    logger.info('Testing...')
-    load_path =  os.path.join(output_dir, 'checkpoint_gpt2_dual' + '.pt')
-    model.load_state_dict(torch.load(load_path))
-    model.eval()
-    model, _, __, test_stats, __, test_pred = run_epoch(
-            args=args,
-            model=model,
-            device=device,
-            data_loader=test_loader,
-            optimizer=None,
-            scheduler=None,
-            stats=test_stats, 
-            desc='test_step', 
-            train=False,
-            use_cuda=True)
+    # logger.info('Testing...')
+    # load_path =  os.path.join(output_dir, 'checkpoint_gpt2_dual' + '.pt')
+    # model.load_state_dict(torch.load(load_path))
+    # model.eval()
+    # model, _, __, test_stats, __, test_pred = run_epoch(
+    #         args=args,
+    #         model=model,
+    #         device=device,
+    #         data_loader=test_loader,
+    #         optimizer=None,
+    #         scheduler=None,
+    #         stats=test_stats, 
+    #         desc='test_step', 
+    #         train=False,
+    #         use_cuda=True)
 
-    #print for status update
-    logger.info('\nTest stats:')
-    test_stats.print()
+    # #print for status update
+    # logger.info('\nTest stats:')
+    # test_stats.print()
 
     '''
     SAVE STATS and PREDICTIONS
@@ -334,6 +336,7 @@ def run_epoch(
         mask1, mask2 = d['masks']
         length1, length2 = d['input_lengths']
         label = d['label']
+        target1, target2 = d['targets']
 
         if use_cuda:
             input1 = input1.to(device)
@@ -345,6 +348,8 @@ def run_epoch(
             length1 = length1.to(device)
             length2 = length2.to(device)
             label = label.to(device)
+            target1 = target1.to(device)
+            target2 = target2.to(device)
 
         inputs = {
         'input1': input1,
@@ -355,6 +360,8 @@ def run_epoch(
         'masks2': mask2 ,
         'segment_ids1': seg1,
         'segment_ids2': seg2,
+        'target1': target1,
+        'target2': target2,
         'labels':label
         }
         if train:
@@ -365,7 +372,7 @@ def run_epoch(
                 logits, loss, lm_loss = model(**inputs)
             
         if train:
-            joint_loss = loss + 0.25*lm_loss
+            joint_loss = loss + args.auxiliary_loss_lambda*lm_loss
             joint_loss.backward()
             '''
             implement gradient norm clip 
