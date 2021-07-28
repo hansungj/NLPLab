@@ -33,7 +33,7 @@ class MLM_Dataloader(DataLoader):
 					context_left,
 					context_right,
 					number_of_samples,
-					masking_prob = 0.15,
+					masking_prob = masking_prob,
 					ignore_index = -100,
 					max_samples = None)
 		
@@ -126,7 +126,14 @@ class MLM_Dataset(Dataset):
 			right_input_sent = self.data['text'][idx+1]
 			output_sent = self.data['text'][idx]
 
-		input_sent = left_input_sent + ' ' + right_input_sent
+		if self.context_left and self.context_right:
+			input_sent = left_input_sent + ' ' + right_input_sent
+		elif self.context_left:
+			input_sent = left_input_sent
+		elif self.context_right:
+			input_sent = right_input_sent
+		else:
+			raise ValueError('Both --context_left and --context_right cannot be set to False')
 
 		input, target, masking, segment_ids = self.tokenize_and_mask(input_sent, output_sent, self.masking_prob)
 
@@ -148,9 +155,9 @@ class MLM_Dataset(Dataset):
 		Output consist of N times ignore_index token, where N-1 is the length of input, indexes of the output's tokens a separation token
 		and an end of sentence token,
 		Ignore_index is a parameter of torch.nn.CrossEntropyLoss that specifies a target value that is ignored and does not contribute to the input gradient. 
-		For BERT model Ignore_index = -1.
+		For BERT model Ignore_index = -100.
 		
-		For performing masking tutorial by James Briggs was used:
+		For performing masking, tutorial by James Briggs was used:
 		https://towardsdatascience.com/masked-language-modelling-with-bert-7d49793e5d2c
 		"""
 		input = []
@@ -190,12 +197,6 @@ class MLM_Dataset(Dataset):
 		else:
 			target = target_tokenized[:self.max_target_length]
 		
-		###.add_speical_token
-		#if self.tokenizer.eos_token != None:
-			#target.append(self.tokenizer.eos_token)
-		#else:
-			#self.tokenizer.add_special_tokens({'eos_token': '<EOS>'})
-			#target.append(self.tokenizer.eos_token)
 		target = self.tokenizer.convert_tokens_to_ids(target)
 		
 		segment_ids = [0] * len(input) + [1] * len(target)
