@@ -576,7 +576,7 @@ def main(args):
 
 	#group parmaeters if we are weight decaying
 	if args.weight_decay:
-		parameters = prepare_model_parameters_weight_decay(model.named_parameters(), args.weight_decay)
+		parameters = utils.prepare_model_parameters_weight_decay(model.named_parameters(), args.weight_decay)
 	else:
 		parameters = model.parameters()
 

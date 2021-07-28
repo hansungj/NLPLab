@@ -47,6 +47,7 @@ parser.add_argument('--seed', default=1234, type=int, help='set seed for random,
 parser.add_argument('--grad_norm_clip', default=1, type=float, help='clip the norm')
 parser.add_argument('--scheduler', default=None, type =bool, help='Activate to use a scheduler')
 parser.add_argument('--num_warmup_steps', default=10000, type =int, help='Number of warmup steps')
+parser.add_argument('--weight_decay', default=0, type=float)
 
 parser.add_argument('--use_cuda', default=False, type=bool, help = 'Activate to use cuda')
 
@@ -96,10 +97,16 @@ def main(args):
 	logger.info('Initializing a BERT model: {}'.format(args.pretrained_name))
 	model = BertMLM(args.pretrained_name, tokenizer)
 
+	#group parmaeters if we are weight decaying
+	if args.weight_decay:
+		parameters = utils.prepare_model_parameters_weight_decay(model.named_parameters(), args.weight_decay)
+	else:
+		parameters = model.parameters()
+
 	# We take learning rate that is proportional to the learning rate in original BERT paper (https://arxiv.org/pdf/1810.04805.pdf)
 	# wrt to batch size:
 	# args.learning_rate = original learning rate / original batch size = 1e-4 / 256 = 4e-7
-	optim = AdamW(model.parameters(), lr=args.learning_rate*args.batch_size)
+	optim = AdamW(parameters, lr=args.learning_rate*args.batch_size)
 
 	if args.use_cuda:
 		if not torch.cuda.is_available():
