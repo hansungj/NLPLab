@@ -7,8 +7,8 @@ scripts/gpt2/pretrain-lm-aux.py \
 --num_warming_steps 16000 \
 --n_gpu 2 \
 --use_cuda True \
---max_context_length 122 \
---max_target_length  90 \
+--max_context_length 92 \
+--max_target_length  92 \
 --weight_decay 0.01 \
 --scheduler cosine \
 --output_dir pretrain-checkpoint-aux-added \

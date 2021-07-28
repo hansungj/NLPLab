@@ -50,7 +50,7 @@ parser.add_argument('--max_samples_per_epoch', type=int, help='Number of samples
 parser.add_argument('--evaluate_during_training', default=False, type=bool, help='Decide to evaluate on validation set')
 parser.add_argument('--evaluate_training_during_training', default=False, type=bool, help='track training by evaluating periodically')
 parser.add_argument('--eval_measure', default = 'accuracy', help='Decide on evaluation measure') # put multiple eval measures separated by ','
-parser.add_argument('--seed', default=1234, type=int, help='set seed for random, numpy, torch, torch.cuda')
+parser.add_argument('--seed', default=None, type=int, help='set seed for random, numpy, torch, torch.cuda')
 parser.add_argument('--n_gpu', default=1, type=int)
 
 #model data settings 
@@ -80,7 +80,8 @@ parser.add_argument('--notes', default=None, type=str)
 
 def main(args):
 
-    utils.set_seed(args.seed)
+    if args.seed:
+        utils.set_seed(args.seed)
 
     if args.n_gpu > 1:
         #initializae to synchronize gpus

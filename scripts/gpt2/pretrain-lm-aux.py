@@ -332,6 +332,9 @@ def run_epoch(
 
             if scheduler:
                 scheduler.step()
+
+            # del input_ids, target_ids, segment_ids, attention_masks, labels, lengths
+            # torch.cuda.empty_cache() 
             
         total_loss += loss.mean().item()
         if step % args.grad_accumulation_steps == 0:
