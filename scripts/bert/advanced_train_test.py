@@ -6,7 +6,7 @@ Pretrained transformers:
 1 Pretrained Transformer CLS: BERT + Head: CLS classifier (see more in nli/models/Transformers)
 2 Pretrained Transformer Pooling: BERT/GPT2 + Mean Pooling + Head: Classfier (see more in nli/models/Transformers)
 3 Transformer Based Dual Encoders (Siamese models):
-	3.1 with a single Head: CLS classifier (for GPT2 based see nli/models/GPT2; for BERT based see nli/models/bert_dual_encoder)
+	3.1 with a single Head: CLS classifier (for GPT2 based see nli/models/GPT2; for BERT based see nli/models/BertBasedDualEncoder)
 	3.2 with two Heads: CLS classifier (for GPT2 based see nli/models/GPT2)
 '''
 
@@ -29,7 +29,7 @@ import nli.metrics as metrics
 from nli.tokenization import WhiteSpaceTokenizer
 from nli.embedding import build_embedding_glove
 from nli.models import *
-from nli.models.bert_dual_encoder import BB_DualEncoder
+from nli.models.BertBasedDualEncoder import BB_DualEncoder
 
 from transformers import BertTokenizer, GPT2Tokenizer, get_linear_schedule_with_warmup
 

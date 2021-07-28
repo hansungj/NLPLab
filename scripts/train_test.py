@@ -31,7 +31,7 @@ from nli.tokenization import WhiteSpaceTokenizer
 from nli.embedding import build_embedding_glove
 from nli.models import *
 from nli.models import StaticEmbeddingCNN
-from nli.models.bert_dual_encoder import BB_DualEncoder
+from nli.models.BertBasedDualEncoder import BB_DualEncoder
 
 
 from transformers import BertTokenizer, GPT2Tokenizer, get_linear_schedule_with_warmup
