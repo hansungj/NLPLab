@@ -9,16 +9,16 @@ Contributors:
 # Repository Structure 
 - **scripts** : all runnable python scripts (i.e. train, test, build vocabulary ...) are in this folder
     - scripts/**baseline** : all train/test python scripts for BoW and DL baseline models
-        -scripts/baseline/**baseline_train_test.py** : train/test python script for the BoW baseline models 
-        -scripts/baseline/**dl_baseline_train_test.py** : train/test python script for the DL baseline models 
+        - scripts/baseline/**baseline_train_test.py** : train/test python script for the BoW baseline models 
+        - scripts/baseline/**dl_baseline_train_test.py** : train/test python script for the DL baseline models 
     - scripts/**bert** : all train/test python scripts for pretraining/fine-tuning BERT
-        -scripts/baseline/**advanced_train_test.py** : train/test python script for the BERT based models 
-        -scripts/baseline/**pretrain_mlm.py** : train/test python script for the further pretraining BERT 
+        - scripts/baseline/**advanced_train_test.py** : train/test python script for the BERT based models 
+        - scripts/baseline/**pretrain_mlm.py** : train/test python script for the further pretraining BERT 
     - scripts/**gpt2** : all train/test python scripts for pretraining/fine-tuning GPT-2
-        -scripts/baseline/**gpt2test.py** : test python script for GPT-2
-        -scripts/baseline/**gpt2train.py** : train (fine-tuning) python script for GPT-2
-        -scripts/baseline/**pretrain-lm-aux.py** : pretraining (fine-tuning) python script for GPT-2 with auxiliary pretraining objective 
-        -scripts/baseline/**preetrain-lm.py** : pretraining (fine-tuning) python script for GPT-2 without auxiliary pretraining objective 
+        - scripts/baseline/**gpt2test.py** : test python script for GPT-2
+        - scripts/baseline/**gpt2train.py** : train (fine-tuning) python script for GPT-2
+        - scripts/baseline/**pretrain-lm-aux.py** : pretraining (fine-tuning) python script for GPT-2 with auxiliary pretraining objective 
+        - scripts/baseline/**preetrain-lm.py** : pretraining (fine-tuning) python script for GPT-2 without auxiliary pretraining objective 
     - scripts/**annotate.py** :  creating manual human annotations for ART
     - scripts/**build_vocab.py** :  building vocabulary for the baselines
 - **nli** : auxiliary functions used by the files in scripts
@@ -38,7 +38,7 @@ Contributors:
     - nli/**preprocess.py** : functions used for preprocessing the dataset
     - nli/**similarity.py** : distance and similarity measures for BoW baseline
     - nli/**tokenization.py** : holds a tokenizer object class used by DL baselines
-    - utils/**utils.py** : various utility functions 
+    - nli/**utils.py** : various utility functions 
 
 ## Setup
 ```
