@@ -26,7 +26,8 @@ class BertMLM(torch.nn.Module):
 		self.model = BertForMaskedLM.from_pretrained(model_name, config=self.config)
 		#self.model = BertForMaskedLM.from_pretrained(model_name, config=self.config, cache_dir = '../hugginface')
 		
-		self.model.resize_token_embeddings(len(tokenizer											
+		self.model.resize_token_embeddings(len(tokenizer))
+
 		#wrapped_model = bert_model.base_model
 
 
