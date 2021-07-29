@@ -16,3 +16,4 @@ data/checkpoint_pretrained-transformers-cls/checkpoint_pretrained-transformers-c
 *.bin
 checkpoint
 *.out
+pretrain-checkpoint-aux-added/*
