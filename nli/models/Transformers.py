@@ -15,6 +15,8 @@ import torch
 class PretrainedTransformerCLS(nn.Module):
 	'''
 	author:  Sungjun Han
+	Description : takes thee hidden vector from [CLS] for classification 
+	model_name : str
 	'''
 	def __init__(self, model_name):
 
@@ -49,6 +51,11 @@ class PretrainedTransformerCLS(nn.Module):
 class PretrainedTransformerPooling(nn.Module):
 	'''
 	author:  Sungjun Han
+	Description : isntead of taking thee hidden vector from [CLS] 
+		- pools all the hidden vectors 
+	
+	model_name : str
+	dropout : float < 1
 	'''
 	def __init__(self, model_name, dropout=0.2):
 		super().__init__()

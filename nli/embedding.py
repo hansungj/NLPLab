@@ -9,6 +9,10 @@ def build_embedding_glove(vocab, glove_name, padding_idx, freeze=True):
 	'''
 	Author: Sungjun Han
 	Description: Loads glove embeddings for the static embedding (sem) models 
+	vocab : dicitonary 
+	glove_name : str
+	padding_idx : int
+	freeze : bool
 	'''
 
 	glove = api.load(glove_name)

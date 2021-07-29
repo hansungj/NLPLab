@@ -12,6 +12,11 @@ import numpy as np
 import torch
 
 def open_label_file(path):
+	'''
+	Author: Sungjun Han
+	Description: This function opens label .lst files from the given path 
+	path : str 
+	'''
 	if path:
 		with open(path, 'r') as f:
 			labels = [int(l) for l in f.read().splitlines()]
@@ -19,6 +24,11 @@ def open_label_file(path):
 	raise ValueError('Must give label path')
 
 def open_json_file(path):
+	'''
+	Author: Sungjun Han
+	Description: This function opens json files from the given path 
+	path : str 
+	'''
 	if path:
 		with open(path, 'r') as f:
 		 	data = json.load(path)
@@ -26,6 +36,12 @@ def open_json_file(path):
 	raise ValueError('Must give json data path')
 
 def open_tsv_file(path, dic=False):
+	'''
+	Author: Sungjun Han
+	Description: This function opens tsv alpha-train/dev/test files from the given path 
+	path : str 
+	dic : bool - whether to prepare it as a dictionary or not 
+	'''
 	if path:
 		with open(path, 'r') as f:
 			data = [l.split('\t') for l in f.read().splitlines()]
@@ -43,6 +59,11 @@ def open_tsv_file(path, dic=False):
 	raise ValueError('Must give tsv data path')
 
 def set_seed(seed):
+	'''
+	Author: Sungjun Han
+	Description: Sets seed for random, numpy, torch, torch.cuda
+	seed : integer 
+	'''
 	random.seed(seed)
 	np.random.seed(seed)
 	torch.manual_seed(seed)
@@ -53,6 +74,8 @@ def prepare_model_parameters_weight_decay(named_parameters, weight_decay):
 	'''
 	Author: Sungjun Han
 	Description: groups parameters for weight decay as biases should not be weight decayed 
+	named_parameters : pytorch nn.Module.named_parameters()
+	weight_decay: float < 1 
 	'''
 
 	no_decay = ['bias', 'LayerNorm.weight']

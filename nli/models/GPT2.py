@@ -13,54 +13,10 @@ import torch.nn as nn
 import torch
 
 
-class PretrainedDecoderTransformer(nn.Module):
-    '''
-    author:  Sungjun Han
-
-    This model will 
-    1. take the last token hidden embedding and use this for prediction 
-    2. language model as an auxiliary objective  
-
-    this model assumes we have the representation format [obs1, obs2, hyp1, hyp2]
-
-    -> this model does not work 
-    '''
-    def __init__(self, model_name,  dropout=0.1):
-        super().__init__()
-        self.model = transformers.GPT2Model.from_pretrained(model_name)
-        self.loss_fn = nn.BCEWithLogitsLoss()
-    def forward(self, **kwargs):
-        labels  = kwargs.pop('mc_labels')
-        output = self.model(**kwargs)
-        loss_lm = output.loss
-        logits = output.mc_logits
-        if labels is not None:
-            loss_mc = self.loss_fn(logits.view(-1), labels.view(-1))
-            return logits, loss_mc, loss_lm
-        return logits
-
-class PretrainedDecoderTransformerCLS(nn.Module):
-    '''
-    author:  Sungjun Han
-    simple CLS classification without auxilary language modelling 
-    todo: here make sure that this works - does not cause .view(-1) error 
-    '''
-    def __init__(self, model_name,  dropout=0.1):
-        super().__init__()
-        
-        config = AutoConfig.from_pretrained(model_name, cache_dir ='../huggingface')
-        config.summary_type = "cls_index"
-        config.num_labels = 1
-        config.summary_first_dropout = dropout
-        self.model = transformers.GPT2Model.from_pretrained(model_name, cache_dir ='../huggingface')
-    def forward(self, **kwargs):
-
-        output = self.model(**kwargs)
-        loss = output.loss
-        logits = output.logits
-        return logits, loss
-
 class ClassificationHead(nn.Module):
+    '''
+    Description : classiciation head for dual-encoder 
+    '''
     def __init__(self, n_emb, num_layers=3, dropout=0.1, n_out =1):
         super().__init__()
         self.seq = nn.ModuleList([ nn.Sequential(
@@ -81,17 +37,52 @@ class ClassificationHead(nn.Module):
         return x 
 
 class Linear(nn.Linear):
+    '''
+    Description : linear layer for the classification head 
+        - initializes the weights orthogonally  
+    '''
     def __init__(self, n_in, n_out):
         super().__init__(n_in, n_out)
         # orthogonal initialization 
         nn.init.orthogonal_(self.weight)
 
+class PretrainedDecoderTransformerCLS(nn.Module):
+    '''
+    author:  Sungjun Han
+    Description : 
+        simple CLS classification without auxilary language modelling
+    model_name : str
+    dropout : float 
+    '''
+    def __init__(self, model_name,  dropout=0.1):
+        super().__init__()
+        
+        config = AutoConfig.from_pretrained(model_name, cache_dir ='../huggingface')
+        config.summary_type = "cls_index"
+        config.num_labels = 1
+        config.summary_first_dropout = dropout
+        self.model = transformers.GPT2Model.from_pretrained(model_name, cache_dir ='../huggingface')
+    def forward(self, **kwargs):
+
+        output = self.model(**kwargs)
+        loss = output.loss
+        logits = output.logits
+        return logits, loss
+
+
 class PretrainedDecoderTransformerDual(nn.Module):
     '''
     author:  Sungjun Han
 
-    This model will assume a dual-encoder archiecture 
+    This model will assume a dual-encoder archiecture  
+    - seperate classifier head for each hypothesis then logits are concatenated then put through softmax
     - language modelling auxilary objetive only for the encoder with the correct hypothesis! 
+
+    model_name : str
+    vocab_size : int 
+    num_layers : int
+    dropout : float < 1
+    label_mask : bool 
     '''
     def __init__(self, 
     model_name, 
@@ -150,36 +141,19 @@ class PretrainedDecoderTransformerDual(nn.Module):
             
         return logits
 
-    # def zero_shot_classify(self, input1, input2, masks1, masks2):
-    #     '''
-    #     classify zero shot way 
-    #     - here we calculate the log likelihood for the hypothesis 
-    #     input 
-    #     '''
-
-    #     output1 = self.model(input1, labels =None,  **kwargs)
-    #     output2 = self.model(input1, labels =None, **kwargs)
-
-    #     label1 = input1[..., 1:].contiguous()
-    #     label2 = input2[..., 1:].contiguous()
-
-    #     logits1 = output1.hidden_states[...,:-1].contiguous()
-    #     logits2 = output2.hidden_states[...,:-1].contiguous()
-
-    #     ll1 = logits1[..., labels1.view(-1)]
-    #     ll2 = logits2[..., labels2.view(-1)]
-
-    #     ll1 = torch.sum(ll1*masks1, dim=-1) / torch.sum(masks1, dim=-1)
-    #     ll2 = torch.sum(ll2*masks2, dim=-1) / torch.sum(masks1, dim=-1)
-
-    #     return (ll1 < ll2).long()
-
 class PretrainedDecoderTransformerDualSingleClassifier(nn.Module):
     '''
     author:  Sungjun Han
-
-    This model will assume a dual-encoder archiecture 
-    - language modelling auxilary objetive only for the encoder with the correct hypothesis! 
+    Description:
+        This model will assume a dual-encoder archiecture - with single head 
+        the hidden vectors are concatenated as follows : [h1, h2, h1-h2]
+        - language modelling auxilary objetive only for the encoder with the correct hypothesis! 
+    
+    model_name : str
+    vocab_size : int 
+    num_layers : int
+    dropout : float < 1
+    label_mask : bool 
     '''
     def __init__(self, 
     model_name, 

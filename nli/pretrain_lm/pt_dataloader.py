@@ -22,6 +22,10 @@ from nli.utils import open_tsv_file
 class BookCorpusLmLoader(DataLoader):
     '''
     Author:  Sungjun Han
+
+    Description : Pretraining dataloader for GPT2 using BookCorpus
+    data : huggingface dataset python object 
+    kwargs : dictionary 
     '''
 
     def __init__(self, data, **kwargs):
@@ -57,6 +61,10 @@ class BookCorpusLmLoader(DataLoader):
         super().__init__(dataset, **kwargs)
 
 def collate_fn_bookcorpus_lm(data):
+    '''
+    Description : collates from the map-style pytorch dataset object into batches 
+    data : list of dictionaries 
+    '''
     batch = {}
     for key in data[0].keys():
         batch[key] = [d[key] for d in data]
@@ -83,8 +91,15 @@ class BookCorpusLmDataset(Dataset):
     '''
     Author:  Sungjun Han
 
-    dataset objective for lm loader 
-    data['text'] = list of two 
+    Desription : Pretraining dataset object for GPT2 using BookCorpus
+    data : huggingface dataset python object
+    tokenizer : hugginface tokenizer python object 
+    left_context : bool 
+    right_context : bool
+    max_context_length : bool 
+    max_target_length : int 
+    context_window : int 
+    random_negative_sample  : float  < 1 
     '''
 
     def __init__(self, 
@@ -116,10 +131,18 @@ class BookCorpusLmDataset(Dataset):
 
     def __getitem__(self, idx):
         '''
-        using the huggingface dataset object 
-        we will dynamically prepare the samples
+        Descrtiption:
+            using the huggingface dataset object 
+            we will dynamically prepare the samples
 
-        we will create the control from the previous/next context window through random sampling 
+            we will create the control from the previous/next context window through random sampling 
+
+            here the control codes are
+            "before : " - for the left context  
+            "after : " - for the right context 
+            "hypothesis : " - for the hypothesis 
+        
+        idx : int 
         '''
         
         if idx == 0 and self.left_context:
@@ -169,10 +192,6 @@ class BookCorpusLmDataset(Dataset):
                 tokens=tokens[:self.max_context_length]
 
             segment_ids.extend([0]*len(tokens))
-            # if i % 2 == 0:
-            #     segment_ids.extend([0]*len(tokens))
-            # else:
-            #     segment_ids.extend([1]*len(tokens))
 
             tokens_all.extend(tokens)
         
@@ -203,13 +222,7 @@ class BookCorpusLmDataset(Dataset):
             ids[-1] = -100 # dont predict the cls token
             target_ids.extend(ids)
 
-        #segment_ids.extend([1]*len(ids))
         segment_ids.extend([1]*(len(ids) + len(target_control_code)))
-        
-        # if len(control) % 2 == 0: # 0, 1, 0
-        #     segment_ids.extend([0]*(len(ids) + len(target_control_code)))
-        # else:
-        #     segment_ids.extend([1]*(len(ids) + len(target_control_code)))
 
         masks = [1]*len(input_ids)
         d = {}

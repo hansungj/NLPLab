@@ -6,7 +6,11 @@ import torch.nn.functional as F
 class Head(nn.Module):
 	'''
 	Author: Sungjun Han  
-	Description: FFN head for encoder or decoder 
+	Description: FFN layers for encoder or decoder 
+	input_size : int
+	output_size : int 
+	activation : str
+	dropout : float < 1
 	'''
 
 	def __init__(self, 
@@ -30,6 +34,14 @@ class StaticEmbeddingMixture(nn.Module):
 	'''
 	Author: Sungjun Han  
 	Description: static embedding model using max/min/average operatino for pooling 
+
+	embedding : torch tensor 
+	hidden_encoder_size : int 
+	hidden_decoder_size : int
+	num_encoder_layers : int
+	num_decoder_layers : int
+	dropout : float < 1
+	pooling : str in ['max', 'sum', 'prod']
 	'''
 
 	def __init__(self,
@@ -108,6 +120,14 @@ class StaticEmbeddingRNN(nn.Module):
 	'''
 	Author: Sungjun Han  
 	Description: static embedding model using RNN for pooling 
+
+	embedding : torch tensor 
+	hidden_encoder_size : int 
+	hidden_decoder_size : int
+	num_encoder_layers : int
+	num_decoder_layers : int
+	dropout : float < 1
+	bidirectional : bool 
 	'''
 	def __init__(self,
 				 embedding,

@@ -9,6 +9,7 @@ class WhiteSpaceTokenizer(object):
 	'''
 	Author: Sungjun Han
 	Description: simple white space tokenizer
+	vocab : dictionary 
 	'''
 
 	def __init__(self, 
@@ -38,7 +39,7 @@ class SubwordTokenizer(object):
 	Author: Sungjun Han
 	Description: Sub word tokenizer - vocabulary needs to be built using BPE/WordPiece
 
-	NotImplemented Yet
+	**Not yet implemented** 
 	'''
 	def __init__(self, 
 				vocab):
@@ -49,6 +50,8 @@ class SubwordTokenizer(object):
 		self.start_token_id = 2
 		self.end_token_id = 3
 		self.splt_token_id = 4
+
+		raise ValueError('Not yet implemented ')
 
 	def tokenize(self, x):
 		tokens = tokenize(x, r'\s+')

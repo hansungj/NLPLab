@@ -17,17 +17,16 @@ class BagOfWordsWrapper(object):
 	'''
 	Author: Sungjun Han, Anastasiia   
 	Description: Wrapper for Bag of words 
-	
-	- holds 
-	1. alignment costs functions 
-	2. lexical weighting functions
-	3. co-occurence matrix building 
+		- holds 
+		1. alignment costs functions 
+		2. lexical weighting functions
+		3. co-occurence matrix building 
 	'''
 
 	def idf(self, corpus):
 		'''
-		build idfs - for lexical weighting 
-		
+		Description : build idfs - for lexical weighting 
+		corpus : list of tuples 
 		'''
 		d = {}
 		N = len(corpus)
@@ -116,6 +115,15 @@ class BagOfWords(BagOfWordsWrapper):
 	'''
 	Author: Sungjun Han 
 	Description: BoW baseline model 
+
+	classifier : python object GDClassifier class 
+	sim_function : str in ['levenshtein', 'distributional', 'cosine', 'euclidean']
+	weight_function : str in ['idf']
+	bidirectional : bool 
+	max_cost : int
+	lemmatize : bool
+	coded : bool
+	vocab : dictionary 
 	'''
 
 	def __init__(self,
@@ -159,6 +167,12 @@ class BagOfWords(BagOfWordsWrapper):
 			self.lemmatizer = WordNetLemmatizer()
 
 	def alignment_cost(self, w1, w2):
+		'''
+		Description : calculates the alignment cost between the words w1 and w2 
+		w1 : str 
+		w2 : str
+
+		'''
 		if self.sim_function in ['cosine', 'euclidean']:
 			token2idx = self.vocab['token2idx']
 			w1 = self.cooccurence_dict[token2idx[w1]]
@@ -205,7 +219,12 @@ class BagOfWords(BagOfWordsWrapper):
 		return cost 
 
 	def total_cost(self, hypothesis, premise):
-
+		'''
+		Description : calculates the alignment cost between the premise and hypothesis
+			- both are already tokenized
+		premise : list 
+		hypothesis : list
+		'''
 		cost = 0
 		for i, h in enumerate(hypothesis): 
 			alignment_costs = [self.alignment_cost(h,p) if self.weight is None  
@@ -227,8 +246,9 @@ class BagOfWords(BagOfWordsWrapper):
 
 	def inference(self, features):
 		'''
-		assume hypothesis and premise are already tokenized
-	
+		Description : Classifiers given the feature 
+
+		features:  list of floats
 		'''
 		#features = self.features(h1,h2,p)
 		x = self.classifier.forward(features)
@@ -236,7 +256,12 @@ class BagOfWords(BagOfWordsWrapper):
 
 	def fit(self, corpus, num_epochs=1, verbose = True):
 		'''
-		Corpus needs to be a list of tuples (premise, hyp1, hyp2, label)
+		Description : trains given the corpus 
+			Corpus needs to be a list of tuples (premise, hyp1, hyp2, label)
+
+		corpus : list of tuples 
+		num_epoch : int 
+		verbose : bool
 		'''
 		#train weight function
 
@@ -271,8 +296,14 @@ class BagOfWords(BagOfWordsWrapper):
 
 	def fit_transform(self, corpus, num_epochs=1, ll=True, verbose=True):
 		'''
-		same as fit but output the result along with log liklihood 
-		Corpus needs to be a list of tuples (premise, hyp1, hyp2, label)
+		Description : 
+			same as fit but output the result along with log liklihood 
+			Corpus needs to be a list of tuples (premise, hyp1, hyp2, label)
+		
+		corpus : list of tuples 
+		num_epochs : int 
+		ll : bool
+		verbose : bool
 		'''
 		self.fit(corpus)
 
@@ -296,6 +327,14 @@ class BagOfWords(BagOfWordsWrapper):
 		return pred, log_like
 
 	def transform(self, X, verbose=True):
+		'''
+		Description : 
+			does not fit but jsut predicts (transforms)
+
+		X : list of tuples 
+		verbose : bool
+
+		'''
 		pred = np.zeros((len(X), 2))
 
 		if verbose:
@@ -312,7 +351,7 @@ class GDClassifier(object):
 	'''
 	Author: Sungjun Han 
 	Description:
-	Wrapper for gradient descent based classifiers 
+		Wrapper for gradient descent based classifiers 
 	'''
 
 	def train(self, x, y):
@@ -418,16 +457,24 @@ class MaxEnt(GDClassifier):
 	'''
 	Author: Sungjun Han  
 	Description: Maximum entropy classifier 
+		Using continous features require more complicated solution 
+		Hence we take a buckting approach where for each continous feature 
+		which we know to be centered around zero 
+		we bucket them into discrete features using a specified stepsize
+		https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.187.9459&rep=rep1&type=pdf
 
-	Using continous features require more complicated solution 
-	Hence we take a buckting approach where for each continous feature 
-	which we know to be centered around zero 
-	we bucket them into discrete features using a specified stepsize
-	https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.187.9459&rep=rep1&type=pdf
+		
+		"This indicates that the moment constraint is not strong enough to distinguish these 
+		two different feature distributions and the resulting MaxEnt model performs poorly."
 
 	
-	"This indicates that the moment constraint is not strong enough to distinguish these 
-	two different feature distributions and the resulting MaxEnt model performs poorly."
+	num_features : int 
+	step_size : int
+	num_buckets : int 
+	num_classes : int 
+	lr : float 
+	reg : bool
+	reg_lambda : float <  1
 
 	'''
 	def __init__(self,
@@ -461,20 +508,25 @@ class MaxEnt(GDClassifier):
 
 	def convert_to_features(self, x, y=None):
 		'''
-		num_buckets = 2
-		step_size = 1
+		Description: converts contious input to discretized buckets 
+			Example : 
+			num_buckets = 2
+			step_size = 1
+			
+			[cost1 cost2]
+
+			w = y=0[ [0,1][1,2][2,inf][-1][-2,-1][-inf,-2] [0,1][1,2][2,inf][-1][-2,-1][-inf,-2],
+				y=1  [0,1][1,2][2,inf][-1][-2,-1][-inf,-2] [0,1][1,2][2,inf][-1][-2,-1][-inf,-2]] 
+
+			p = [0.1,
+				0.9]
+
+			cost = 1.5 // step_size  = 1
+
+			assume that y in {0, 1}
 		
-		[cost1 cost2]
-
-		w = y=0[ [0,1][1,2][2,inf][-1][-2,-1][-inf,-2] [0,1][1,2][2,inf][-1][-2,-1][-inf,-2],
-			y=1  [0,1][1,2][2,inf][-1][-2,-1][-inf,-2] [0,1][1,2][2,inf][-1][-2,-1][-inf,-2]] 
-
-		p = [0.1,
-		     0.9]
-
-		cost = 1.5 // step_size  = 1
-
-		assume that y in {0, 1}
+		x : list 
+		y : int in [0, 1]
 		'''
 		features = np.zeros_like(self.weights)
 		for i, f_value in enumerate(x):
@@ -498,6 +550,14 @@ class MaxEnt(GDClassifier):
 		return features 
 
 	def forward(self, x, as_features = False):
+		
+		'''
+		Description : calculates conditional probabilty p(y|x)
+
+		x :  numpy array if as_features else list of floats
+		as_features : bool
+
+		'''
 
 		if not as_features:
 			x = self.convert_to_features(x) # num_classes * total_num_features 
@@ -507,6 +567,12 @@ class MaxEnt(GDClassifier):
 		return x / np.sum(x) # outputs vector of size num_classes
 
 	def model_expectation(self, x):
+		'''
+		Description : calculates conditional probabilty p(y|x) for both y values = 0, 1 
+			this is to be used for calculating the gradient 
+
+		x : list 
+		'''
 
 		x = self.convert_to_features(x)
 		model_p = self.forward(x, True)
@@ -516,15 +582,26 @@ class MaxEnt(GDClassifier):
 
 	def empirical_expectation(self, x, y):
 		'''
-		x already in features 
-		y in range(num_classes)
+		Description : calcualtes the empricial expectation of features for calculating the gradient 
+			x already in features 
+			y in range(num_classes)
 
-		E[f]
+			E[f]
+		
+		x : list 
+		y : int 
 		'''
 		expectation = self.convert_to_features(x, y)
 		return expectation
 
-	def train_step(self, x, y, N):
+	def train_step(self, x, y, N):		
+		'''
+		Description : Takes one gradient step
+		
+		x : list 
+		y : int 
+		N : int - number of examples in the corpus 
+		'''
 		#compute empirical expectation for the features 
 		e_p_emp = self.empirical_expectation(x,y)
 

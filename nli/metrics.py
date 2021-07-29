@@ -5,12 +5,11 @@ from collections import defaultdict
 
 
 class MetricKeeper(object):
-
 	'''
 	Author: Sungjun Han
 	Description: Class for holding and evaluting evaluation metrics 
+	eval_measures : str 
 	'''
-
 	def __init__(self, eval_measures=None):
 		self.keeper = defaultdict(list)
 		self.eval_functions = []
@@ -28,11 +27,22 @@ class MetricKeeper(object):
 					self.eval_functions.append((fscore, 'fscore'))
 
 	def eval(self, y, y_pred):
+		'''
+		Description : evaluates given the true labels (y) and predictions (y_pred)
+					 using the defined evaluation measures 
+		y : list
+		y_pred : list 
+		'''
 		for eval_f, eval_n in self.eval_functions:
 			eval_r = eval_f(y, y_pred)
 			self.keeper[eval_n].append(eval_r)
 
 	def update(self, eval_name, eval_r):
+		'''
+		Description : used to update any other eval metric e.g. log likelihood
+		eval_name : str
+		eval_r : float 
+		'''
 		#manually update 
 		self.keeper[eval_name].append(eval_r)
 
@@ -42,7 +52,12 @@ class MetricKeeper(object):
 
 def log_likelihood(y, y_pred, k=2):
 	'''
-	assume that y_pred has dim [N,k]
+	Author: Sungjun Han
+	Description: calcualtes log likelihood
+				assume that y_pred has dim [N,k], k=dimension
+	y : list 
+	y_pred : list 
+	k = int 
 	'''
 	epsilon = 1e-8
 	if k==2:
@@ -57,6 +72,8 @@ def accuracy(y_true, y_pred):
 	'''
 	Author: Sungjun Han
 	Description: calcalates accuracy 
+	y_true : list 
+	y_pred : list 
 	'''
 
 	assert(len(y_true)==len(y_pred))
@@ -69,10 +86,11 @@ def confusion_matrix(y_true, y_pred, axis=0):
 	'''
 	Author: Sungjun Han
 	Description: computes confusion matrix 
-	
-	axis=0 computes ground in terms of hypothesis 1 
-	axis=1 computes ground in terms of hypothesis 2 
-
+		axis=0 computes ground in terms of hypothesis 1 
+		axis=1 computes ground in terms of hypothesis 2 
+	y_true : list 
+	y_pred : list 
+	axis : int
 	'''
 	C = [[0]*2 for _ in range(2)]
 
@@ -96,7 +114,13 @@ def confusion_matrix(y_true, y_pred, axis=0):
 	return C 
 
 def precision(y_true, y_pred, C=None):
-	
+	'''
+	Author: Sungjun Han
+	Description: computes precision
+	y_true : list 
+	y_pred : list 
+	C : list of list (confusion matrix )
+	'''
 	#raise NotImplementedError
 	if C is None:
 		C = confusion_matrix(y_true, y_pred)
@@ -105,6 +129,13 @@ def precision(y_true, y_pred, C=None):
 	return prec
 
 def recall(y_true, y_pred, C=None):
+	'''
+	Author: Sungjun Han
+	Description: computes recall
+	y_true : list 
+	y_pred : list 
+	C : list of list (confusion matrix )
+	'''
 	#raise NotImplementedError
 	if C is None:
 		C = confusion_matrix(y_true, y_pred)
@@ -113,6 +144,13 @@ def recall(y_true, y_pred, C=None):
 	return rec
 
 def fscore(y_true, y_pred, beta = 1):
+	'''
+	Author: Sungjun Han
+	Description: computes f-beta-score
+	y_true : list 
+	y_pred : list 
+	beta : int
+	'''
 	#raise NotImplementedError
 	# prec = C[0][0] / (C[0][0] + C[1][0])
 	# rec = C[0][0] / (C[0][0] + C[0][1])

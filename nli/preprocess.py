@@ -12,11 +12,23 @@ import sys
 
 def tokenize(sent,
 			delimiters = r'\s+'):
+	'''
+	Description : tokenizes the given string using the delimiter 
+	sent : str
+	delimiters : str 
+	'''
 	
 	tokenized = re.split(delimiters, sent)
 	return tokenized
 
 def frequency_count(dataset, lower, delimiters = r'\s+'):
+	'''
+	Author : Sungjun Han
+	Description: counts frequencies of the tokens from the given dataset 
+	dataset : list of list 
+	lower : bool 
+	delimiters : str
+	'''
 	freq_count = defaultdict(int)
 	for i in range(len(dataset)):
 		_, obs1, obs2, hyp1, hyp2, label = dataset[i]
@@ -34,6 +46,15 @@ def token_to_idx(freq_count,
 			end_symbol = None, 
 			unk_symbol = None,
 			split_symbol = None):
+	'''
+	Descriptions: build vocabulary (token to idx dictionary mapping) from the frequency counts 
+	freq_count : dictionary
+	pad_symbol : bool
+	start_symbol : bool
+	end_symbol : bool 
+	unk_symbol : bool
+	split_symbol : bool
+	'''
 	
 	# 0 for pad 
 	tok2idx = {}
@@ -60,10 +81,20 @@ def token_to_idx(freq_count,
 
 
 def idx_to_token(tok2idx):
+	'''
+	Descriptions: build idx to token dictionary mapping from token 2 idx dictionary mapping
+	tok2idx : dictionary
+	'''
 	idx2tok = {v:k for k,v in tok2idx.items()} 
 	return idx2tok
 
 def encode(tokenized_sentence, tok2idx, unk_token):
+	'''
+	Descriptions: encode a tokenized sentence into a list of integers using the token2idx vocabulary
+	tokenized_sentence : list of str
+	tok2idx : dictionary
+	unk_token : str
+	'''
 	encoded = []
 	unk_idx = tok2idx[unk_token]
 	for token in tokenized_sentence:
@@ -71,6 +102,12 @@ def encode(tokenized_sentence, tok2idx, unk_token):
 	return encoded
 
 def decode(encoded, idx2tok, unk_token): 
+	'''
+	Descriptions: decode a list of integers into a sentence using the idx2tok vocabulary
+	encoded : list of int
+	idx2tok : dictionary
+	unk_token : str
+	'''
 	#unk token needs to be provided
 	decoded = []
 	for idx in encoded:

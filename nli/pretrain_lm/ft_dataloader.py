@@ -18,6 +18,17 @@ from nli.utils import open_tsv_file
 class LMClassificationDataset(Dataset):
     '''
     Author:  Sungjun Han
+
+    Desription: Dataset object for ART dataset for GPT-2
+        prepares for dual-encoder architecture 
+
+    data_patbh : str
+    tokenizer : hugginface tokenizer python object 
+    contiguous : bool
+    max_samples : bool
+    max_target_length : int 
+    max_context_length : int 
+
     '''
     def __init__(self,
                 data_path,
@@ -47,12 +58,9 @@ class LMClassificationDataset(Dataset):
             story1 = (self.data['obs1'][idx], self.data['obs2'][idx], self.data['hyp1'][idx])
             story2 = (self.data['obs1'][idx], self.data['obs2'][idx],self.data['hyp2'][idx])
         
-        # here randomly shuffle the two stories 
-        # stories = [story1, story2]
-        # random.shuffle(stories)
-        # story1, story2 = stories 
 
         label = self.data['label'][idx]
+        # depending on the label we are going to decide to mask the target or not 
         story1_tokens_id, story1_segment_ids, story1_masks, story1_reference, story1_target = self.process_story(story1, (label == 0))
         story2_tokens_id, story2_segment_ids, story2_masks, story2_reference, story2_target= self.process_story(story2, (label == 1))
 
@@ -77,24 +85,15 @@ class LMClassificationDataset(Dataset):
         tokens = []
         reference = ''
         for i, story in enumerate(input):
-            # if i != len(input)-1:
-            #     control_code = "observation {} : ".format(i+1)
-            # else:
-            #     control_code = "hypothesis : "
             if i == 0:
                 story = 'before :  ' + story
             elif i == 1:
                 story = ' | after :  ' + story
             else:
                 story = ' | hypothesis :  ' + story
-
-            # if i !=0:
-            #     story = ' | ' + story
             
             toks = self.tokenizer.tokenize(story)
 
-            # if i != 0:
-            #     toks.insert(0, self.tokenizer.sep_token)
             
             if i == 0:
                 toks.insert(0, self.tokenizer.bos_token)
@@ -112,7 +111,6 @@ class LMClassificationDataset(Dataset):
 
             tokens.extend(toks)
 
-            # if i % 2 == 0:
             if i != self.target_index: # apply the segment id for the hypothesis differently than the observation
                 segment_ids.extend(len(toks)*[0])
             else: 
@@ -136,9 +134,10 @@ class LMClassificationDataset(Dataset):
 def lm_transformer_collate_fn(batch):
     '''
     Author:  Sungjun Han
+
+    Description : collating for batches 
+    batch : list of dictionaries 
     '''
-
-
     item={}
     for key in batch[0].keys():
         item[key] = [d[key] for d in batch] # [item_dic, item_idc ]

@@ -24,6 +24,10 @@ from nli.preprocess import tokenize
 class AlphaDatasetBaseline(Dataset):
 	'''
 	Author:  Sungjun Han
+	Description : custom dataloader for BoW baseline models 
+				- inherits from torch.utils.data.Dataset (mapping style dataset)
+	data_path : str
+	max_samples : int 
 	'''
 	def __init__(self,
 				 data_path, 
@@ -49,6 +53,11 @@ class AlphaDatasetBaseline(Dataset):
 class AlphaDataset(Dataset):
 	'''
 	Author:  Sungjun Han
+	Description : custom dataloader for DL baseline models 
+				- inherits from torch.utils.data.Dataset (mapping style dataset)
+	data_path : str
+	tokenizer : python object 
+	max_samples : int 
 	'''
 	def __init__(self,
 				data_path,
@@ -77,6 +86,10 @@ class AlphaDataset(Dataset):
 		return items
 
 	def preprocess_hypothesis(self, hyp):
+		'''
+		Description: prepares hypothesis - adding start token / end token and encode
+		hyp : str
+		'''
 		hyp_tokens = self.tokenizer.tokenize(hyp)
 		hyp_tokens.insert(0, self.tokenizer.start_token)
 		hyp_tokens.append(self.tokenizer.end_token)
@@ -85,6 +98,10 @@ class AlphaDataset(Dataset):
 		return torch.tensor(hyp_ids), torch.tensor(masks), hyp
 
 	def preprocess_premise(self, obs):
+		'''
+		Description: prepares premise - adding start token / end token, and encode
+		obs : str
+		'''
 		obs = (' ' + self.tokenizer.split_token + ' ').join(obs) # sentence </s> sentence 
 		tokens = self.tokenizer.tokenize(obs)
 		tokens.insert(0, self.tokenizer.start_token)
@@ -96,8 +113,9 @@ class AlphaDataset(Dataset):
 def merge(sequences, pad_id):
 	'''
 	Author:  Sungjun Han
-	Description:
-	Merges the batch by padding to the max length
+	Description: Merges the batch by padding to the max length
+	sequences : list 
+	pad_id : integer 
 	'''
 	lengths = [len(l) for l in sequences]
 	max_length = max(lengths)
@@ -111,8 +129,8 @@ def merge(sequences, pad_id):
 def alpha_collate_fn_base(batch):
 	'''
 	Author:  Sungjun Han
-	Description:
-	Colate_fn function for the sem-encoder-pooling models
+	Description:  function for the sem-encoder-pooling models
+	batch : list of dictionaries
 	'''
 	item={}
 	for key in batch[0].keys():
@@ -149,9 +167,16 @@ def alpha_collate_fn_base(batch):
 class AlphaDatasetTransformer(Dataset):
 	'''
 	Author:  Sungjun Han
-	Description: Prepares input as [obs1, [SEP], obs2, [SEP], hyp1, [SEP], hyp2]. 
-	Depending on the task [CLS] token will be inserted at position 0 or -1
-	
+	Description: custom dataloader for BERT (transformer models from huggingface) models 
+			- inherits from torch.utils.data.Dataset (mapping style dataset)
+			Prepares input as [obs1, [SEP], obs2, [SEP], hyp1, [SEP], hyp2]. 
+			Depending on the task [CLS] token will be inserted at position 0 or -1
+	data_path : str
+	tokenizer : python object (huggingface)
+	max_samples : int 
+	sep_token : str
+	ped_token_id : int
+	cls_at_start : bool
 	'''
 	def __init__(self,
 				data_path,
@@ -212,8 +237,8 @@ class AlphaDatasetTransformer(Dataset):
 def alpha_collate_fn_transformer(batch):
 	'''
 	Author:  Sungjun Han
-	Description:
-	Colate_fn function for the transformer models	
+	Description: Colate_fn function for the BERT (transformer) models	
+	batch : list of dictionaries 
 	'''
 
 	item={}
@@ -235,13 +260,26 @@ def alpha_collate_fn_transformer(batch):
 	d['label'] = label
 	return d
 
-def load_dataloader_base(dataset, test_dataset, val_dataset, batch_size, shuffle=True, drop_last = True, num_workers = 0):
+def load_dataloader_base(
+	dataset, 
+	test_dataset, 
+	val_dataset, 
+	batch_size, 
+	shuffle=True, 
+	drop_last = True, 
+	num_workers = 0):
 	'''
 	Author:  Sungjun Han
-	Description:
-	prepares dataloader for train/val/test for sem-encoder-pooling models 
-
-	distributed not  supported
+	Description: prepares dataloader for train/val/test for DL baseline models 
+			distributed not supported
+	
+	dataset : torch.utils.data.Dataset object 
+	test_dataset : torch.utils.data.Dataset object 
+	val_dataset : torch.utils.data.Dataset object 
+	batch_size : int
+	shuffle : bool
+	drop_last : bool
+	num_workers : bool
 	'''
 	dataloader = DataLoader(dataset, 
 		batch_size, 
@@ -278,10 +316,16 @@ def prepare_dataloader(dataset,
 	distributed = False ):
 	'''
 	Author:  Sungjun Han
-	Description:
-	prepares dataloader for train/val/test for transformer models 
+	Description: prepares dataloader for train/val/test for transformer models 
+		note that we do not test using with multiple gpus
 
-	note that we do not test using with multiple gpus
+	dataset : torch.utils.data.Dataset object 
+	test_dataset : torch.utils.data.Dataset object 
+	val_dataset : torch.utils.data.Dataset object 
+	batch_size : int
+	shuffle : bool
+	drop_last : bool
+	num_workers : bool
 	'''
 	dataloader = None
 	test_dataloader = None

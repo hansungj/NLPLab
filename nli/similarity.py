@@ -6,6 +6,8 @@ def levenshtein(x,y):
 	'''
 	Author: Sungjun Han  
 	Description: computes levenshtein distance 
+	x : str 
+	y : str
 	'''
 	dp = [[0]*(len(y)+1) for _ in range(len(x)+1)] 
 	for i in range(1, len(x)+1):
@@ -22,6 +24,8 @@ def distributional(x,y):
 	'''
 	Author: Anastasiia 
 	check coocurrence value
+
+
 	'''
 	dist = 0
 	try:
