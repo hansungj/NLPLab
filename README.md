@@ -47,13 +47,13 @@ conda activate nlplab
 pip install -e .
 ```
 Make sure to have a data folder with the aNLI data present: data/alphali/...
-
+<!-- 
 ## Evaluate 
 
 This allows you to evaluate on predictions written on a file.  
 ```
 python scripts/evaluate.py --label_dir <PROVIDE GROUND TRUTH LABEL FILE PATH> --pred_dir <PROVIDE REDICTION FILE PATH>
-```
+``` -->
 
 
 ## Annotate
@@ -82,7 +82,7 @@ you can also set vocabulary specifiction parameters
 2. --vocabulary_size : desired vocabulary size, selects the top frequent word types and filters out the rest 
 # train a base line model
 
-## Split Dev into 70/30 Test/Val
+<!-- ## Split Dev into 70/30 Test/Val
 
 Since testing out the prediction on the unknown test set requires submitting the results on the public leaderboard along with the project description (and submission is only allowed every 7 days), we will use the provided dev set for testing by splitting it into a test set and a validation set with random 90/10 split. The reason why we split on dev.tsv, not on train.tsv, is that the answer distribution seems to be very different between the train and dev. Thus using a validation set created from splitting train will result will not work for monitoring the model's generalization capabiltiy. 
 
@@ -96,7 +96,7 @@ python scripts/parser.py \
 --suffix _split \
 --split 0.3 \
 ```
-This splits val.tsv into two files: val_split.tsv and test_split.tsv at data/alphanli/tsv
+This splits val.tsv into two files: val_split.tsv and test_split.tsv at data/alphanli/tsv -->
 
 ## Train baseline model : Bag of Words 
 Note that for the baseline BoW model with Maximum entropy classifier - there is no need to run the model more than one epoch.
@@ -104,10 +104,10 @@ Note that for the baseline BoW model with Maximum entropy classifier - there is 
 to run a model that scored 50.97%, 
 
 ```
-python scripts/baseline_train_test.py \
+python scripts/baseline/baseline_train_test.py \
 --model_type BoW \
 --train_tsv data/alphanli/tsv/train.tsv \ 
---test_tsv data/alphanli/tsv/val.tsv \ 
+--test_tsv data/alphanli/tsv/dev.tsv \ 
 --bow_classifier prc \ 
 --num_epochs 1 \
 --bow_sim_function levenshtein \
@@ -123,10 +123,10 @@ python scripts/baseline_train_test.py \
 to run a model that scored 50.79%, 
 
 ```
-python scripts/baseline_train_test.py \
+python scripts/baseline/baseline_train_test.py \
 --model_type BoW \
 --train_tsv data/alphanli/tsv/train.tsv \ 
---test_tsv data/alphanli/tsv/val.tsv \ 
+--test_tsv data/alphanli/tsv/dev.tsv \ 
 --bow_classifier prc \ 
 --num_epochs 1 \
 --bow_sim_function distributional \
@@ -142,10 +142,10 @@ python scripts/baseline_train_test.py \
 to run a model that scored 50.13%, 
 
 ```
-python scripts/baseline_train_test.py \
+python scripts/baseline/baseline_train_test.py \
 --model_type BoW \
 --train_tsv data/alphanli/tsv/train.tsv \ 
---test_tsv data/alphanli/tsv/val.tsv \ 
+--test_tsv data/alphanli/tsv/dev.tsv \ 
 --bow_classifier maxent \ 
 --num_epochs 1 \
 --bow_sim_function levenshtein \
@@ -161,10 +161,10 @@ python scripts/baseline_train_test.py \
 to run a model that scored 51.52%, 
 
 ```
-python scripts/baseline_train_test.py \
+python scripts/baseline/baseline_train_test.py \
 --model_type BoW \
 --train_tsv data/alphanli/tsv/train.tsv \ 
---test_tsv data/alphanli/tsv/val.tsv \ 
+--test_tsv data/alphanli/tsv/dev.tsv \ 
 --bow_classifier maxent \ 
 --num_epochs 1 \
 --bow_sim_function distributional \
@@ -187,10 +187,9 @@ this can also be run using early stopping by setting early stopping > 0
 
 To replicate the baseline accuracy score of 52.73%, run
 ```
-python scripts/dl_baseline_train_test.py \
+python scripts/baseline/dl_baseline_train_test.py \
 --train_tsv data/alphanli/tsv/train.tsv \ 
---val_tsv data/alphanli/tsv/val_split.tsv \ 
---test_tsv data/alphanli/tsv/test_split.tsv \ 
+--test_tsv data/alphanli/tsv/dev.tsv \ 
 --model_type StaticEmb-mixture \
 --sem_pooling sum \
 --use_cuda True \
@@ -212,11 +211,10 @@ this can also be run using early stopping by setting early stopping > 0
 
 To replicate the baseline accuracy score of 55.10%, run
 ```
-python scripts/dl_baseline_train_test.py \
+python scripts/baseline/dl_baseline_train_test.py \
 --model_type StaticEmb-rnn \
 --train_tsv data/alphanli/tsv/train.tsv \ 
---val_tsv data/alphanli/tsv/val_split.tsv \ 
---test_tsv data/alphanli/tsv/test_split.tsv \ 
+--test_tsv data/alphanli/tsv/dev.tsv \  
 --use_cuda True \
 --batch_size 128 \
 --learning_rate 5e-4 \
@@ -237,11 +235,10 @@ this can also be run using early stopping by setting early stopping > 0
 
 To replicate the baseline accuracy score of 56.13%, run
 ```
-python scripts/dl_baseline_train_test.py \
+python scripts/baseline/dl_baseline_train_test.py \
 --model_type StaticEmb-cnn \
 --train_tsv data/alphanli/tsv/train.tsv \ 
---val_tsv data/alphanli/tsv/val_split.tsv \ 
---test_tsv data/alphanli/tsv/test_split.tsv \ 
+--test_tsv data/alphanli/tsv/dev.tsv \ 
 --use_cuda True \
 --batch_size 128 \
 --learning_rate 1e-4 \
@@ -260,12 +257,11 @@ this can also be run using early stopping by setting early stopping > 0. We use 
 To replicate the baseline accuracy score of 61.82%, run 
 
 ```
-python scripts/advanced_train_test.py \
+python scripts/baseline/advanced_train_test.py \
 --model_type pretrained-transformers-cls \
 --pretrained_name bert-base-uncased \
 --train_tsv data/alphanli/tsv/train.tsv \ 
---val_tsv data/alphanli/tsv/val_split.tsv \ 
---test_tsv data/alphanli/tsv/test_split.tsv \ 
+--test_tsv data/alphanli/tsv/dev.tsv \ 
 --batch_size 128 \
 --early_stopping 0 \ 
 --num_epochs 15 \ 
@@ -276,7 +272,7 @@ python scripts/advanced_train_test.py \
 --weight_decay 0.0 \ 
 --seed 1234 \
 ```
-
+<!-- 
 ### BERT Based Dual Encoder with a single CLS classifier head
 
 We use huggingface implementation for pretrained transformer models.
@@ -298,4 +294,4 @@ python scripts/advanced_train_test.py \
 --use_cuda True \
 --weight_decay 0.0 \ 
 --seed 1234 \
-```
+``` -->
