@@ -29,14 +29,14 @@ IGN token is needed to ensure that the loss is calculated for the predicted mask
 ## Masking approaches
  We randomly choose 30% of all the tokens for masking. For each of the chosen tokens one of the following three actions is taken: 
  1) the token is replaced with a masking token [MASK] with probability of 80%;
- 2) the token is replaced with another token, randomly chosen from the dictionary with probability of 10\%; 
- 3) the token is left unchanged with probability of 10\%.
+ 2) the token is replaced with another token, randomly chosen from the dictionary with probability of 10%; 
+ 3) the token is left unchanged with probability of 10%.
 
-
+Another, deprecated version is as follows: each token is replaced with a masking token [MASK] with probability of 15%.
 # Fine-tuning Stage
 The further pretrained model is supposed to be used in 2 different ways:
-1.
+1. Replacing BERT base model (made freely available by Huggingface) within our BERT-concat model (see nli/model/Transformers.py)
 
-2.
+2. Replace BERT base model (made freely available by Huggingface) within our BERT-concat model (see nli/model/BertBasedDualEncoder.py)
 
 
