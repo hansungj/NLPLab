@@ -46,7 +46,11 @@ class Linear(nn.Linear):
 		nn.init.orthogonal_(self.weight)
 
 class BB_DualEncoder(nn.Module):
-
+	"""
+		Description: Bert based dual encoder custom model
+		model_name: str; where to import BERT from
+		tokenizer: python object; the huggingface tokenizer that is compatible to the chosed model
+	"""
 	def __init__(self, model_name, tokenizer):
 
 		super().__init__()

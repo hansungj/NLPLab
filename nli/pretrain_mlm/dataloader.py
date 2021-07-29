@@ -1,6 +1,6 @@
 """
 	Author: Anastasiia Sirotina
-	Data loader for batching/collating for BERT 
+	Preaparing data for batching/collating for further pretraining of BERT for masked language modelling objective
 """
 
 import json
@@ -15,7 +15,15 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 class MLM_Dataloader(DataLoader):
-
+	"""
+		Description: custom data loader for further pretraining of BERT for masked language modelling objective
+		data: str; the source for data
+		tokenizer: python object; the huggingface tokenizer that is compatible to the chosed model
+		context_left: bool; True is the left context is a part of input
+		context_right: bool; True is the right context is a part of input
+		masking_prob: int; the percentage of tokems masked (deprecated:the probability of masking a token)
+		number_of_samples: int; number of data points from the data that will be used
+	"""
 	def __init__(self,**kwargs):
 
 		data = kwargs.pop('data')
@@ -45,6 +53,10 @@ class MLM_Dataloader(DataLoader):
 	
 
 	def mlm_collate_fn(self, batch):
+		"""
+			custom collate_fn function to pad the datapoint not to the length of the longest datapoint in the collection, but
+			to the length of the longest datapoint in the batch
+		"""
 		item={}
 		for key in batch[0].keys():
 			item[key] = [d[key] for d in batch]
@@ -63,6 +75,9 @@ class MLM_Dataloader(DataLoader):
 		return d
 
 	def padding(self, datalist, pad_token_id):
+		"""
+			custom padding to the length of the longest datapoint in the batch
+		"""
 		#pad_token_id = self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token)
 		max_len = max([len(item) for item in datalist])
 		padded_datalist = torch.zeros((len(datalist), max_len)).long()
@@ -75,6 +90,15 @@ class MLM_Dataloader(DataLoader):
 	
 
 class MLM_Dataset(Dataset):
+	"""
+		Description: custom data set for further pretraining of BERT for masked language modelling objective
+		data: str; the source for data
+		tokenizer: python object; the huggingface tokenizer that is compatible to the chosed model
+		context_left: bool; True is the left context is a part of input
+		context_right: bool; True is the right context is a part of input
+		masking_prob: int; the percentage of tokems masked (deprecated:the probability of masking a token)
+		number_of_samples: int; number of data points from the data that will be used
+	"""
 	
 	def __init__(self,
 				data,
@@ -122,12 +146,14 @@ class MLM_Dataset(Dataset):
 			output_sent = self.data['text'][idx]
 			left_input_sent = self.data['text'][idx-1]
 
+		#last sentence doesn't have a next sentence
 		if self.context_right:
 			if idx == len(self.data):
 				idx -= 1
 			right_input_sent = self.data['text'][idx+1]
 			output_sent = self.data['text'][idx]
 
+		#if both left and right contexts are given, then merge them
 		if self.context_left and self.context_right:
 			input_sent = (left_input_sent, right_input_sent)
 		elif self.context_left:
@@ -151,23 +177,33 @@ class MLM_Dataset(Dataset):
 
 	def tokenize_and_mask(self, input_sent, output_sent, masking_prob = 0.15):
 		"""
-		For a pair of sentences "He has an elder sister. Her name is Sarah." , we create the following input and output lists:
-			input = 	CLS S1_1 S1_2 S1_3 S1_4 S1_5 S1_6 SEP S2_1 S2_2 S2_3 S2_4 S2_5 EOS
-			target = 	IGN IGN  IGN  IGN  IGN  IGN  IGN  IGN S2_1 S2_2 S2_3 S2_4 S2_5 EOS
-		Input consist of a CLS token then indexes of the input's tokens a separation token and indexes of the output's tokens
-		Output consist of N times ignore_index token, where N-1 is the length of input, indexes of the output's tokens a separation token
-		and an end of sentence token,
+		Each datapoint is a tuple (input, target). The input is structured as follows: a CLS token, tokenized c_l, a separation token, tokenized c_r, a separation token, tokenized and mask s, EOS token. The target is of the same length as the input filled with special ignoring tokens IGN expect for the positions at which tokens in the target sentence were masked, those positions are filled with the initail tokens of the target sentence.
+
+		Example:
+
+		c_l = I have an elder sister.
+		s = Her name is Sarah.
+		c_r = She is nice.
+
+		input = [ [CLS], CL1, CL2, CL3, CL4, CL5, CL6, [SEP], CL1, CL2, CL3, CL4, CL5, [SEP], S1, [MASK], S3, [MASK], [EOS] ]
+		target = [ [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], [IGN], S2, [IGN], S4, [IGN] ]
+
+		
 		Ignore_index is a parameter of torch.nn.CrossEntropyLoss that specifies a target value that is ignored and does not contribute to the input gradient. 
 		For BERT model Ignore_index = -100.
 		
-		For performing masking, tutorial by James Briggs was used:
-		https://towardsdatascience.com/masked-language-modelling-with-bert-7d49793e5d2c
+		We randomly choose 15%/30% of all the tokens for masking. For each of the chosen tokens one of the following three actions is taken: 
+		1) the token is replaced with a masking token [MASK] with probability of 80%;
+		2) the token is replaced with another token, randomly chosen from the dictionary with probability of 10%; 
+		3) the token is left unchanged with probability of 10%.
+		
 		"""
 		input = []
 		target = []
 
 		input.append(self.tokenizer.cls_token)
 		
+		#for each input_sent (left and right): tokenize and cut to the max_length, add separation token
 		for input_sent_ in input_sent:
 			input_tokenized = self.tokenizer.tokenize(input_sent_)
 			if len(input_tokenized) < self.max_context_length:
@@ -189,6 +225,8 @@ class MLM_Dataset(Dataset):
 		target.append(self.tokenizer.eos_token)
 		
 		#deprecated: mask a token with prob of 15%,
+		#For performing this masking, tutorial by James Briggs was used:
+		#https://towardsdatascience.com/masked-language-modelling-with-bert-7d49793e5d2c
 		#random_nums = torch.rand(len(target))
 		##mask a token with prob of 15%, excluding CLS tokens, SEP tokens
 		##generating a masking filter 
@@ -204,33 +242,29 @@ class MLM_Dataset(Dataset):
 		target_masked = self.tokenizer.convert_tokens_to_ids(target)
 		
 		indeces = [t for t in range(len(target)-1)] # -1 so that we don't mask the EOS token
-		#print('indeces = {}'.format(indeces))
 		
+		# how many tokens will be masked
 		num_to_mask = round(len(target)*masking_prob)
-		#print('num_to_mask = {}'.format(num_to_mask))
 		
+		# sample the tokens
 		tokens_to_mask = random.sample(indeces, k=num_to_mask)
-		#print('tokens_to_mask = {}'.format(tokens_to_mask))
 		
-		randoms = list(torch.rand(len(tokens_to_mask)))
-		#print('randoms = {}'.format(randoms))
-				
+		# create random numbers to choose which action to take for each masked token
+		randoms = list(torch.rand(len(tokens_to_mask))) 
+		
+		#id for [MASK]
 		mask_token = self.tokenizer.convert_tokens_to_ids(self.tokenizer.mask_token)
 		
 		for idx in tokens_to_mask:
 		
-			#print('idx = {}'.format(idx))
 			target_unmasked[idx] = target_masked[idx]
 			prob = randoms.pop()
-			#print('prob = {}'.format(prob))
 			
 			if prob <= 0.8:
 				target_masked[idx] = mask_token
 				
 			elif (prob > 0.8) and (prob <= 0.9):
 				random_token = random.randint(0, len(self.tokenizer)-1)
-				#print('random_token = {}'.format(random_token))
-				#print('target_masked[idx]  = {}'.format(target_masked[idx]))
 				target_masked[idx] = random_token
 				
 			#elif prob >0.9:
@@ -248,6 +282,7 @@ class MLM_Dataset(Dataset):
 		masking_fin = [1]*len(input)
 		return input, target, masking_fin, segment_ids
 
+#for debugging
 if __name__ == '__main__':
 	tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 	#tokenizer = BertTokenizer.from_pretrained(args.pretrained_name, cache_dir = '../huggingface') #for running on the ims server
