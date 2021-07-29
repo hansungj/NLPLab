@@ -8,6 +8,7 @@ Contributors:
 
 # Repository Structure 
 - **scripts** : all runnable python scripts (i.e. train, test, build vocabulary ...) are in this folder
+    - scripts/**run_scripts** : all .sh scripts for running gpt2 training
     - scripts/**baseline** : all train/test python scripts for BoW and DL baseline models
         - scripts/baseline/**baseline_train_test.py** : train/test python script for the BoW baseline models 
         - scripts/baseline/**dl_baseline_train_test.py** : train/test python script for the DL baseline models 
