@@ -352,7 +352,7 @@ class AlphaDatasetDualEncoder(Dataset):
 		return self.max_samples
 
 	def __getitem__(self, idx):
-		observations = (' ' + self.sep_token + ' ').join(['observation 1 :' + self.data['obs1'][idx], 'observation 2 :' + self.data['obs2'][idx]])
+		observations = (' ' + self.sep_token + ' ').join([self.data['obs1'][idx], self.data['obs2'][idx]])
 		hypotheses = (' ' + self.sep_token + ' ').join(['hypothesis 1 :'+ self.data['hyp1'][idx],'hypothesis 2 :'+  self.data['hyp2'][idx]])
 		tokenized_observations = self.tokenizer.tokenize(observations)
 
