@@ -4,3 +4,4 @@ from nli.models.StaticEmb import StaticEmbeddingMixture, StaticEmbeddingRNN, Sta
 from nli.models.Transformers import PretrainedTransformerCLS, PretrainedTransformerPooling
 from nli.models.GPT2 import PretrainedDecoderTransformerDual, PretrainedDecoderTransformerCLS, PretrainedDecoderTransformerDualSingleClassifier
 from nli.models.BERT import BertMLM
+from nli.models.BERTBasedDualEncoder import BB_DualEncoder
