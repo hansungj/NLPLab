@@ -1,6 +1,4 @@
-# NLPLab
-
-# Natural Language Inference 
+# Sentence Level Pretraining for Natural Language Inference 
 
 Contributors:
 - Sungjun Han 
