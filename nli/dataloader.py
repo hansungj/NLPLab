@@ -1,6 +1,6 @@
 '''
 
-Author:  Sungjun Han
+Author:  Sungjun Han, Anastasiia
 Description: contains data loader / dataset objects for the AlphaNLI task 
 
 1. dataset object for BoW baseline 
@@ -8,6 +8,9 @@ Description: contains data loader / dataset objects for the AlphaNLI task
 3. dataset object for transformer models 
 4. define dataloader function for (2)
 5. define dataloader function for (3)
+6. dataset for bert based dual encoder
+7. dataloader for bert based dual encoder
+8. load dataloader in (7)
 
 '''
 
@@ -374,7 +377,12 @@ def prepare_dataloader(dataset,
 class AlphaDatasetDualEncoder(Dataset):
 	'''
 	Author: Anastasiia
-	Description: Prepares  2 instances: [[CLS], obs1, [SEP], obs2 [SEP], hyp1, [EOS]] and [[CLS], obs1, [SEP], obs2 [SEP], hyp2, [EOS]]. 	
+	Description: Prepares  2 instances: [[CLS], obs1, [SEP], obs2 [SEP], hyp1, [EOS]] and [[CLS], obs1, [SEP], obs2 [SEP], hyp2, [EOS]]. 
+	data_path: str; where to take data from;
+	tokenizer: python object; the huggingface tokenizer that is compatible to the chosed model;
+	max_samples: int; the number of samples per epoch;
+	sep_token: str; separation token;
+	pad_token_id: str; pad token
 	'''
 	def __init__(self,
 				data_path,
@@ -400,6 +408,7 @@ class AlphaDatasetDualEncoder(Dataset):
 		hypotheses = (' ' + self.sep_token + ' ').join(['hypothesis 1 :'+ self.data['hyp1'][idx],'hypothesis 2 :'+  self.data['hyp2'][idx]])
 		tokenized_observations = self.tokenizer.tokenize(observations)
 
+		#items for the first BERT encoder
 		input1 = []
 		input1.append(self.tokenizer.cls_token)
 		input1 += tokenized_observations
@@ -416,6 +425,7 @@ class AlphaDatasetDualEncoder(Dataset):
 		segment_ids1.extend([1]*(len(hyp1_tokenized)+1))
 		masks1 = [1]*len(input1)
 
+		#items for the second BERT encoder
 		input2 = []
 		input2.append(self.tokenizer.cls_token)
 		input2 += tokenized_observations
@@ -462,6 +472,8 @@ class DualEncoder_Dataloader(DataLoader):
 	def collate_fn_BBDualEnc(self, batch):
 		'''
 		Author: Anastasiia
+		custom collate_fn function to pad the datapoint not to the length of the longest datapoint in the collection, but
+		to the length of the longest datapoint in the batch
 		'''
 		item={}
 		for key in batch[0].keys():
@@ -490,6 +502,10 @@ class DualEncoder_Dataloader(DataLoader):
 		return d
 
 	def padding(self, datalist):
+		"""
+		Author: Anastasiia
+		custom padding to the length of the longest datapoint in the batch
+		"""
 		pad_token_id = self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token)
 		max_len = max([len(item) for item in datalist])
 		padded_datalist = torch.zeros((len(datalist), max_len)).long()
