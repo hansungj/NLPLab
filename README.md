@@ -1,5 +1,9 @@
 # Sentence Level Pretraining for Natural Language Inference 
+### Abstract 
 
+In this paper we discuss a novel approach to improve the performance of transformer-based models for Natural language inference (NLI) task. We hypothesize the knowledge of the relationships between the premise and the hy- potheses needed to be successful in NLI can be extracted from an unannotated corpus in a self- supervised manner. We propose two training objectives to achieve this: Sentence Level Lan- guage Modelling (SL-LM) and Sentence Level Masked Language Modelling (SL-MLM)1. To show the conceptual validity of this hypothesis we compare performance of transformer-based models with pretraining to the non-pretrained models on a chosen NLI task.
+
+See [paper](https://www.google.com) here.
 Contributors:
 - Sungjun Han 
 - Anastasiia Sirotina
