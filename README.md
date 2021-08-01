@@ -81,7 +81,7 @@ you can choose between two types under --vocab_type
 you can also set vocabulary specifiction parameters 
 1. --min_occurence : minimum occurence for a word type to be included in the vocabulary
 2. --vocabulary_size : desired vocabulary size, selects the top frequent word types and filters out the rest 
-# train a base line model
+# Train a base line model
 
 <!-- ## Split Dev into 70/30 Test/Val
 
@@ -296,3 +296,45 @@ python scripts/advanced_train_test.py \
 --weight_decay 0.0 \ 
 --seed 1234 \
 ``` -->
+
+# Pretrain
+
+all pretrainig configurations are kept in .sh files - **scripts/run_scripts/**
+
+## GPT-2 Sentence Level Language Modelling (SL-LM)
+
+For multi-gpu:
+```
+scripts/run_scripts/pretrain-lm-multi-gpu.sh
+```
+
+For single-gpu:
+```
+scripts/run_scripts/pretrain-lm-single-gpu.sh
+```
+
+## BERT Sentence Level Masked Language Modelling (SL-MLM)
+
+## GPT-2 Fine-tuning 
+
+Training with SL-LM pretrained model 
+```
+scripts/run_scripts/gpt2-dual-single-gpu.sh --from_pretrained <INSERT_PRETRAINED_PATH>
+```
+
+Training without SL-LM pretrained model 
+```
+scripts/run_scripts/gpt2-dual-single-gpu.sh --from_pretrained None
+```
+
+## BERT Fine-tuning 
+
+Training with SL-MLM pretrained model 
+```
+scripts/run_scripts/bert-dual.sh 
+```
+
+Training without SL-MLM pretrained model 
+```
+scripts/run_scripts/bert-dual-pretrained.sh 
+```
