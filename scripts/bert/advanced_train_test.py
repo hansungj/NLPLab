@@ -27,11 +27,10 @@ from nli.dataloader import  AlphaDatasetTransformer, AlphaDatasetDualEncoder, pr
 import nli.preprocess as preprocess
 import nli.metrics as metrics
 from nli.tokenization import WhiteSpaceTokenizer
-from nli.embedding import build_embedding_glove
 from nli.models import *
 from nli.models.BertBasedDualEncoder import BB_DualEncoder
 
-from transformers import BertTokenizer, GPT2Tokenizer, get_linear_schedule_with_warmup
+from transformers import BertTokenizer, GPT2Tokenizer, get_linear_schedule_with_warmup, AdamW, get_cosine_schedule_with_warmup
 
 parser = argparse.ArgumentParser()
 logger = logging.getLogger(__name__)
@@ -68,14 +67,14 @@ parser.add_argument('--use_cuda', default=False, type=bool, help = 'set True act
 parser.add_argument('--learning_rate', default=1e-4, type=float)
 parser.add_argument('--tokenizer', default='regular', help='choose tokenizer: regular/bpe - for baseline model')
 parser.add_argument('--optimizer', default='adam', help='adam/adamW/sgd/..')
-parser.add_argument('--beta_1', default=0.99, type=float, help='beta1 for first moment')
-parser.add_argument('--beta_2', default=0.999, type=float, help='beta2 for second moment')
+parser.add_argument('--beta_1', default=0.9, type=float, help='beta1 for first moment')
+parser.add_argument('--beta_2', default=0.99, type=float, help='beta2 for second moment')
 parser.add_argument('--weight_decay', default=0, type=float)
 parser.add_argument('--eps', default=1e-8, type=float)
 parser.add_argument('--scheduler', default=None, type = bool, help='')
 parser.add_argument('--num_warming_steps', default=0.1, type=float, help='number of warming steps for the scheduler - between 0 and 1')
 parser.add_argument('--dropout', default=0.5, type=float, help='')
-parser.add_argument('--grad_norm_clip', default=1, type=float, help='clip the norm')
+parser.add_argument('--grad_norm_clip', default=0, type=float, help='clip the norm')
 parser.add_argument('--grad_accumulation_steps', default=None, type=int, help='number of steps to accumulate gradient')
 parser.add_argument('--early_stopping', default=10,  type=int, help='patience for early stopping - if 0 no early stopping used')
 
@@ -114,18 +113,6 @@ def transformer_initialize_model(args, vocab_size = None):
 
 		model = PretrainedTransformerPooling(args.pretrained_name) # mean pooling 
 
-	elif args.model_type == 'pretrained-transformers-decoder':
-		if 'gpt' not in args.pretrained_name:
-			raise ValueError('for now we only support gpt model')
-			
-		model = PretrainedDecoderTransformerCLS(args.pretrained_name)
-
-	elif args.model_type == 'pretrained-transformers-decoder-dual':
-		if 'gpt' not in args.pretrained_name:
-			raise ValueError('for now we only support gpt model')
-
-		model = PretrainedDecoderTransformerDual(args.pretrained_name, vocab_size = vocab_size, pooling_type = None)	 # none means mean pooling 
-	
 	if args.n_gpu > 1:
 		model = nn.parallel.DistributedDataParallel(model, find_unused_parameters=True)
 
@@ -169,29 +156,6 @@ def test(
 					label = label.to(device)
 		
 				logits, loss = model(input_ids, segment_ids, masks, label)
-			
-			elif model_type in ['pretrained-transformers-decoder']:
-				if use_cuda:
-					batch['input_ids'] = batch['input_ids'].to(device)
-					batch['segment_ids'] = batch['segment_ids'].to(device)
-					batch['masks'] = batch['masks'].to(device)
-					batch['label'] = batch['label'].to(device)
-					batch['input_lengths'] = batch['input_lengths'].to(device)
-					batch['lm_label'] = batch['lm_label'].to(device)
-
-				inputs = {
-				'input_ids': batch['input_ids'],
-				'attention_mask':batch['segment_ids'],
-				'token_type_ids':batch['masks'],
-				'mc_token_ids':batch['input_lengths'] -1,
-				'mc_labels':batch['label'],
-				'labels': batch['lm_label']
-				}
-			
-				logits, loss_mc, loss_lm = model(**inputs)
-				loss = 2*loss_mc + loss_lm
-
-				label = batch['label']
 
 			elif model_type in ['dual_enc_bert']:
 				if use_cuda:
@@ -258,7 +222,6 @@ def train(
 		pred = []
 		train_loss = 0
 		model.train()
-		model.zero_grad()
 		for step, batch in enumerate(tqdm(train_loader, desc ='train-step')):
 
 			#prepare data, run the model for different model types
@@ -299,14 +262,6 @@ def train(
 
 			loss.backward()
 
-			#gradient check for debugging 
-			# logger.info('aasdfasdfasdf')
-			# for n, p in model.named_parameters():
-			# 	if p.grad is not None:
-			# 		logger.info(n)
-			# 		logger.info(p.grad.mean())
-			# 	else:
-			# 		logger.info('{} grad is None'.format(n))
 			'''
 			implement gradient norm clip 
 			'''
@@ -356,6 +311,14 @@ def train(
 					return model, (stats, val_stats)
 
 				logger.info('Early stopping patience {}'.format(earlyStop))
+		
+		checkpoint = {
+			'stats': stats.keeper,
+			'val_stats': val_stats.keeper if args.evaluate else None,
+			'args': args.__dict__
+			}
+		with open(os.path.join(output_dir, 'stats.json'), 'w') as f:
+			json.dump(checkpoint, f, indent=4)
 
 	torch.save(model.state_dict(), os.path.join(output_dir, 'checkpoint_'+ model_type + '.pt') )
 	if evaluate_during_training:
@@ -435,7 +398,7 @@ def evaluate(
 
 def main(args):
 
-	utils.set_seed(args.seed)
+	#utils.set_seed(args.seed)
 
 	if args.n_gpu > 1:
 		#initializae to synchronize gpus
@@ -480,11 +443,7 @@ def main(args):
 				'cls_at_start': True
 				}
 
-		if 'bert' in args.pretrained_name:
-			if 'BERTmlm' in args.pretrained_name:
-				tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-			else:
-				tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
+		tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', cache_dir ='../huggingface')
 		dataset_kwargs['tokenizer'] = tokenizer
 
 		#initialize dataloader -- train
@@ -515,18 +474,14 @@ def main(args):
 
 	elif args.model_type =='dual_enc_bert':
 
-		# initialize tokenizer
-		if 'BERTmlm' in args.pretrained_name:
-			tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-		else:
-			tokenizer = BertTokenizer.from_pretrained(args.pretrained_name)
+		tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
 		#ensure that the tokenizer has all the functional tokens
-		if tokenizer.cls_token == None:
+		if tokenizer.cls_token is None:
 			tokenizer.add_special_tokens({'cls_token': '[CLS]'})
-		if tokenizer.sep_token == None:
+		if tokenizer.sep_token is None:
 			tokenizer.add_special_tokens({'sep_token': '[SEP]'})
-		if tokenizer.eos_token == None:
+		if tokenizer.eos_token is None:
 			tokenizer.add_special_tokens({'eos_token': '[EOS]'})
 
 		model = BB_DualEncoder(args.pretrained_name, tokenizer)
@@ -582,15 +537,15 @@ def main(args):
 
 	#optimizer 
 	if args.optimizer == 'adam':
-		optimizer = torch.optim.Adam(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
+		optimizer = torch.optim.AdamW(parameters, args.learning_rate, (args.beta_1,args.beta_2), args.eps)
 
 	#scheduler
 	scheduler = None 
 	if args.scheduler:
 		num_training_steps = int((len(train_loader)//args.batch_size)*args.num_epochs)
 		num_warmup_steps = int(num_training_steps*args.num_warming_steps)
-		scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps,num_training_steps)
-
+		#scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps,num_training_steps)
+		scheduler = get_cosine_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps)
 	'''
 	TRAIN and TESt
 	'''

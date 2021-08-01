@@ -23,12 +23,12 @@ class PretrainedTransformerCLS(nn.Module):
 		super().__init__()
 
 		if 'pretrained_BERTmlm' in model_name:
-			model = AutoModel.from_pretrained(model_name)
+			model = AutoModel.from_pretrained(model_name, cache_dir ='../huggingface')
 			self.model = model.base_model
 		else:
-			self.model = AutoModel.from_pretrained(model_name)
+			self.model = AutoModel.from_pretrained(model_name, cache_dir ='../huggingface')
 		
-		self.config = AutoConfig.from_pretrained(model_name)
+		self.config = AutoConfig.from_pretrained(model_name, cache_dir ='../huggingface')
 
 		hidden_size = self.config.hidden_size
 		self.classifier = nn.Linear(hidden_size, 1)
