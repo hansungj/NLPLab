@@ -8,6 +8,8 @@ Contributors:
 - Sungjun Han 
 - Anastasiia Sirotina
 
+This is the code release for the paper:
+
 # Repository Structure 
 - **scripts** : all runnable python scripts (i.e. train, test, build vocabulary ...) are in this folder
     - scripts/**run_scripts** : all .sh scripts for running gpt2/bert training
