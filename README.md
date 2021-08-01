@@ -8,7 +8,7 @@ Contributors:
 - Sungjun Han 
 - Anastasiia Sirotina
 
-This is the code release for the paper:
+This is the code release for the paper, we do not release the pretrained models due to size restriction on github.
 
 # Repository Structure 
 - **scripts** : all runnable python scripts (i.e. train, test, build vocabulary ...) are in this folder
